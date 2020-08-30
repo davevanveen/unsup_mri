@@ -37,7 +37,7 @@ class conv_model(nn.Module):
             net1.add(act_fun)
             cntr += 1
             
-            if need_lin_comb:
+            if need_lin_comb: # default False
                 net1.add(nn.BatchNorm2d( num_channels, affine=bn_affine)) 
                 #net1.add(act_fun)
                 cntr += 1
@@ -58,10 +58,10 @@ class conv_model(nn.Module):
         net2 = nn.Sequential()
         
         nic = num_channels
-        if skips:
+        if skips: # default False
             nic = num_channels*( sum(intermeds)+1 )
         
-        if need_last:
+        if need_last: # default False
             net2.add( nn.Conv2d(nic, num_channels, kernel_size, strides[i], padding=(kernel_size-1)//2, bias=bias) )
             net2.add(act_fun)
             net2.add(nn.BatchNorm2d( num_channels, affine=bn_affine))
@@ -69,15 +69,17 @@ class conv_model(nn.Module):
             
         net2.add(nn.Conv2d(nic, num_output_channels, 1, 1, padding=0, bias=bias))
         
-        if sig is not None:
+        if sig is not None: # default None
             net2.add(self.sig)
         
-        self.net1 = net1 
-        self.net2 = net2
+        self.net1 = net1 # actual convdecoder network
+        self.net2 = net2 # (default seting) one-layer net converting number of channels
         
     def forward(self, x, scale_out=1):
+    ''' run input thru net1 (convdecoder) then net2 (converts number of channels
+        provide options for skip connections (default False) and scaling factors (default 1) '''
         out1 = self.net1(x)
-        if self.skips:
+        if self.skips: # default False
             intermed_outs = []
             for i,c in enumerate(self.net1):
                 if i+1 in self.layer_inds:
@@ -90,6 +92,7 @@ class conv_model(nn.Module):
         out2 = self.net2(out1)
         return out2*scale_out
     def up_sample(self,img):
+        ''' single upsampling layer '''
         samp_block = nn.Upsample(size=self.hidden_size[-1], mode=self.upsample_mode)#,align_corners=True)
         img = samp_block(img)
         return img
@@ -116,9 +119,18 @@ def convdecoder(
         kernel_size=3,
         ):
     
-    
+    ''' determine how to scale the network based on specified input size and output size
+        where output hidden_size is size of each hidden layer of network
+        e.g. input [8,4] and output [640,368] would yield hidden_size of:
+            [(15, 8), (28, 15), (53, 28), (98, 53), (183, 102), (343, 193), (640, 368)]
+        provide option for nonlinear scaling (default False) and different activation functions
+        call conv_model(...), defined above '''
+
+    # scaling factor layer-to-layer in x and y direction
+    # e.g. (scale_x, scale_y) = (1.87, 1.91)
     scale_x,scale_y = (out_size[0]/in_size[0])**(1./(num_layers-1)), (out_size[1]/in_size[1])**(1./(num_layers-1))
-    if nonlin_scales:
+    
+    if nonlin_scales: # default false
         xscales = np.ceil( np.linspace(scale_x * in_size[0],out_size[0],num_layers-1) )
         yscales = np.ceil( np.linspace(scale_y * in_size[1],out_size[1],num_layers-1) )
         hidden_size = [(int(x),int(y)) for (x,y) in zip(xscales,yscales)]
@@ -126,7 +138,8 @@ def convdecoder(
         hidden_size = [(int(np.ceil(scale_x**n * in_size[0])),
                         int(np.ceil(scale_y**n * in_size[1]))) for n in range(1, (num_layers-1))] + [out_size]
     print(hidden_size)
-    if need_sigmoid:
+    
+    if need_sigmoid: # default True
         sig = nn.Sigmoid()
         #sig = nn.Tanh()
         #sig = nn.Softmax()

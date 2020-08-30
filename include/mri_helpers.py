@@ -33,11 +33,13 @@ def ksp2measurement(ksp):
     return np_to_var( np.transpose( np.array([np.real(ksp),np.imag(ksp)]) , (1, 2, 3, 0)) )   
 
 def lsreconstruction(measurement,mode='both'):
-    # measurement has dimension (1, num_slices, x, y, 2)
+    ''' given measurement of dimn (1, num_slices, x, y, 2), 
+        take ifft and return either the
+        real components, imag components, or combined magnitude '''
+    
     fimg = transform.ifft2(measurement)
-    normimag = torch.norm(fimg[:,:,:,:,0])
-    normreal = torch.norm(fimg[:,:,:,:,1])
-    #print("real/img parts: ",normimag, normreal)
+    #print("real/img parts: ", torch.norm(fimg[:,:,:,:,0]), torch.norm(fimg[:,:,:,:,1]))
+    
     if mode == 'both':
         return torch.sqrt(fimg[:,:,:,:,0]**2 + fimg[:,:,:,:,1]**2)
     elif mode == 'real':
@@ -58,6 +60,9 @@ def crop_center2(img,cropx,cropy):
     return img[starty:starty+cropy,startx:startx+cropx]
 
 def channels2imgs(out):
+    ''' for entire input array,
+        compute magnitude of adjacent two channels (complex values)
+        and combine them into one image '''
     sh = out.shape
     chs = int(sh[0]/2)
     imgs = np.zeros( (chs,sh[1],sh[2]) )
@@ -82,11 +87,17 @@ def forwardm(img,mask):
     return Fimg
 
 def get_scale_factor(net,num_channels,in_size,slice_ksp,scale_out=1,scale_type="norm"): 
-    ### get norm of deep decoder output
-    # get net input, scaling of that is irrelevant
+    ''' return ni: network input, e.g. tensor w values sampled uniformly on [0,1]
+
+        return scaling factor, i.e. difference in magnitudes scaling b/w:
+        original image and random image of network output = net(ni) '''
+        
+
+    # create net input ni, e.g. tensor with values sampled uniformly on [0,1]
     shape = [1,num_channels, in_size[0], in_size[1]]
     ni = Variable(torch.zeros(shape)).type(dtype)
     ni.data.uniform_()
+
     # generate random image
     try:
         out_chs = net( ni.type(dtype),scale_out=scale_out ).data.cpu().numpy()[0]
@@ -106,5 +117,5 @@ def get_scale_factor(net,num_channels,in_size,slice_ksp,scale_out=1,scale_type="
         s = np.linalg.norm(out_img_tt) / np.linalg.norm(orig_img_np)
     if scale_type == "mean":
         s = (out_img_tt.mean() / orig_img_np.mean()).numpy()[np.newaxis][0]
-    return s,ni
+    return s, ni
 

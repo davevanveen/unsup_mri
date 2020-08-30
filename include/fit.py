@@ -59,13 +59,13 @@ def fit(net,
         num_iter = 5000,
         LR = 0.01,
         OPTIMIZER='adam',
-        opt_input = False,
-        reg_noise_std = 0,
+        #opt_input = False,
+        #reg_noise_std = 0,
         reg_noise_decayevery = 100000,
         mask_var = None,
         mask = None,
         apply_f = None,
-        lr_decay_epoch = 0,
+        #lr_decay_epoch = 0,
         net_input = None,
         net_input_gen = "random",
         lsimg = None,
@@ -75,71 +75,70 @@ def fit(net,
         upsample_mode = "bilinear",
         totalupsample = 1,
         loss_type="MSE",
-        output_gradients=False,
-        output_weights=False,
-        show_images=False,
-        plot_after=None,
+        #output_gradients=False,
+        #output_weights=False,
+        #show_images=False,
+        #plot_after=None,
         in_size=None,
-        retain_graph = False,
+        #retain_graph = False,
         scale_out=1,
        ):
 
     if net_input is not None:
         print("input provided")
-    else:
-        
-        if upsample_mode=="bilinear":
-            # feed uniform noise into the network 
-            totalupsample = 2**len(num_channels)
-            width = int(img_clean_var.data.shape[2]/totalupsample)
-            height = int(img_clean_var.data.shape[3]/totalupsample)
-        elif upsample_mode=="deconv":
-            # feed uniform noise into the network 
-            totalupsample = 2**(len(num_channels)-1)
-            width = int(img_clean_var.data.shape[2]/totalupsample)
-            height = int(img_clean_var.data.shape[3]/totalupsample)
-        elif upsample_mode=="free":
-            width,height = in_size
-            
-        
-        shape = [1,num_channels[0], width, height]
-        print("input shape: ", shape)
-        net_input = Variable(torch.zeros(shape)).type(dtype)
-        net_input.data.uniform_()
-        net_input.data *= 1./10
+    #else:
+    #    if upsample_mode=="bilinear": # default
+    #        # feed uniform noise into the network 
+    #        totalupsample = 2**len(num_channels)
+    #        width = int(img_clean_var.data.shape[2]/totalupsample)
+    #        height = int(img_clean_var.data.shape[3]/totalupsample)
+    #    #elif upsample_mode=="deconv":
+    #    #    # feed uniform noise into the network 
+    #    #    totalupsample = 2**(len(num_channels)-1)
+    #    #    width = int(img_clean_var.data.shape[2]/totalupsample)
+    #    #    height = int(img_clean_var.data.shape[3]/totalupsample)
+    #    #elif upsample_mode=="free":
+    #    #    width,height = in_size
+    #        
+    #    shape = [1, num_channels[0], width, height]
+    #    print("input shape: ", shape)
+    #    net_input = Variable(torch.zeros(shape)).type(dtype)
+    #    net_input.data.uniform_()
+    #    net_input.data *= 1./10
     
     net_input = net_input.type(dtype)
     net_input_saved = net_input.data.clone()
     noise = net_input.data.clone()
-    p = [x for x in net.parameters() ]
 
-    if(opt_input == True): # optimizer over the input as well
-        net_input.requires_grad = True
-        p += [net_input]
+    p = [x for x in net.parameters()]
+
+    #if(opt_input == True): # optimizer over the input as well
+    #    net_input.requires_grad = True
+    #    p += [net_input]
 
     mse_wrt_noisy = np.zeros(num_iter)
     mse_wrt_truth = np.zeros(num_iter)
     
     
-    if OPTIMIZER == 'SGD':
-        print("optimize with SGD", LR)
-        optimizer = torch.optim.SGD(p, lr=LR,momentum=0.9,weight_decay=weight_decay)
-    elif OPTIMIZER == 'adam':
+    if OPTIMIZER == 'adam':
         print("optimize with adam", LR)
         optimizer = torch.optim.Adam(p, lr=LR,weight_decay=weight_decay)
-    elif OPTIMIZER == 'LBFGS':
-        print("optimize with LBFGS", LR)
-        optimizer = torch.optim.LBFGS(p, lr=LR)
-    elif OPTIMIZER == "adagrad":
-        print("optimize with adagrad", LR)
-        optimizer = torch.optim.Adagrad(p, lr=LR,weight_decay=weight_decay)
+    #elif OPTIMIZER == 'SGD':
+    #    print("optimize with SGD", LR)
+    #    optimizer = torch.optim.SGD(p, lr=LR,momentum=0.9,weight_decay=weight_decay)
+    #elif OPTIMIZER == 'LBFGS':
+    #    print("optimize with LBFGS", LR)
+    #    optimizer = torch.optim.LBFGS(p, lr=LR)
+    #elif OPTIMIZER == "adagrad":
+    #    print("optimize with adagrad", LR)
+    #    optimizer = torch.optim.Adagrad(p, lr=LR,weight_decay=weight_decay)
 
     if loss_type=="MSE":
         mse = torch.nn.MSELoss()
-    if loss_type == "MSLE":
-        mse = MSLELoss()
-    if loss_type=="L1":
-        mse = nn.L1Loss()
+    #if loss_type == "MSLE":
+    #    mse = MSLELoss()
+    #if loss_type=="L1":
+    #    mse = nn.L1Loss()
     
     if find_best:
         best_net = copy.deepcopy(net)
@@ -156,46 +155,46 @@ def fit(net,
     
     out_imgs = np.zeros((1,1))
     
-    if plot_after is not None:
-        try:
-            out_img_np = net( net_input_saved.type(dtype),scale_out=scale_out ).data.cpu().numpy()[0]
-        except:
-            out_img_np = net( net_input_saved.type(dtype) ).data.cpu().numpy()[0]
-        out_imgs = np.zeros( (len(plot_after),) + out_img_np.shape )
+    #if plot_after is not None:
+    #    try:
+    #        out_img_np = net( net_input_saved.type(dtype),scale_out=scale_out ).data.cpu().numpy()[0]
+    #    except:
+    #        out_img_np = net( net_input_saved.type(dtype) ).data.cpu().numpy()[0]
+    #    out_imgs = np.zeros( (len(plot_after),) + out_img_np.shape )
     
-    PSNRs = []
-    SSIMs = []
-    norm_ratio = []
+    PSNRs, SSIMs, norm_ratio = [], [], []
+    
     for i in range(num_iter):
-        """if i<=300:
-            for param_group in optimizer.param_groups:
-                param_group['lr'] = LR*20
-        else:
-            for param_group in optimizer.param_groups:
-                param_group['lr'] = LR
-        """        
-        if lr_decay_epoch is not 0:
-            optimizer = exp_lr_scheduler(optimizer, i, init_lr=LR, lr_decay_epoch=lr_decay_epoch)
-        if reg_noise_std > 0:
-            if i % reg_noise_decayevery == 0:
-                reg_noise_std *= 0.7
-            net_input = Variable(net_input_saved + (noise.normal_() * reg_noise_std))
+        #"""if i<=300:
+        #    for param_group in optimizer.param_groups:
+        #        param_group['lr'] = LR*20
+        #else:
+        #    for param_group in optimizer.param_groups:
+        #        param_group['lr'] = LR
+        #"""        
+        
+        #if lr_decay_epoch is not 0:
+        #    optimizer = exp_lr_scheduler(optimizer, i, init_lr=LR, lr_decay_epoch=lr_decay_epoch)
+        #if reg_noise_std > 0:
+        #    if i % reg_noise_decayevery == 0:
+        #        reg_noise_std *= 0.7
+        #    net_input = Variable(net_input_saved + (noise.normal_() * reg_noise_std))
         
         
         def closure():
             
             ### adjust scaling
-            """if i <= num_iter:
-                out = net(net_input.type(dtype),scale_out=1)
-                out_chs = out.data.cpu().numpy()[0]
-                out_imgs = channels2imgs(out_chs)
-                orignorm = np.linalg.norm( root_sum_of_squares2(var_to_np(lsimg)) )
-                recnorm = np.linalg.norm( root_sum_of_squares2(out_imgs) )
-                scale_out = orignorm / recnorm
-            ###
-            if i == num_iter-1:
-                print(scale_out)
-            """
+            #"""if i <= num_iter:
+            #    out = net(net_input.type(dtype),scale_out=1)
+            #    out_chs = out.data.cpu().numpy()[0]
+            #    out_imgs = channels2imgs(out_chs)
+            #    orignorm = np.linalg.norm( root_sum_of_squares2(var_to_np(lsimg)) )
+            #    recnorm = np.linalg.norm( root_sum_of_squares2(out_imgs) )
+            #    scale_out = orignorm / recnorm
+            ####
+            #if i == num_iter-1:
+            #    print(scale_out)
+            #"""
             optimizer.zero_grad()
             try:
                 out = net(net_input.type(dtype),scale_out=scale_out)
@@ -203,6 +202,7 @@ def fit(net,
                 out = net(net_input.type(dtype))
                 
             # training loss
+            # decide whether or not we need to apply mask TODO: simplify this
             if mask_var is not None:
                 loss = mse( out * mask_var , img_noisy_var * mask_var )
             elif apply_f:
@@ -210,20 +210,20 @@ def fit(net,
             else:
                 loss = mse(out, img_noisy_var)
         
-            loss.backward(retain_graph=retain_graph)
+            loss.backward(retain_graph=False)
             
             mse_wrt_noisy[i] = loss.data.cpu().numpy()
 
-            # the actual loss 
+            # the actual loss TODO: figure out difference b/w training and "actual" loss
             true_loss = mse( Variable(out.data, requires_grad=False).type(dtype), img_clean_var.type(dtype) )
             mse_wrt_truth[i] = true_loss.data.cpu().numpy()
             
-            if output_gradients:
-                for ind,p in enumerate(list(filter(lambda p: p.grad is not None and len(p.data.shape)>2, net.parameters()))):
-                    out_grads[ind,i] = p.grad.data.norm(2).item()
-                    #print(p.grad.data.norm(2).item())
-                    #su += p.grad.data.norm(2).item()
-                    #mse_wrt_noisy[i] = su
+            #if output_gradients:
+            #    for ind,p in enumerate(list(filter(lambda p: p.grad is not None and len(p.data.shape)>2, net.parameters()))):
+            #        out_grads[ind,i] = p.grad.data.norm(2).item()
+            #        #print(p.grad.data.norm(2).item())
+            #        #su += p.grad.data.norm(2).item()
+            #        #mse_wrt_noisy[i] = su
             
             if i % 100 == 0:
                 if lsimg is not None:
@@ -254,24 +254,24 @@ def fit(net,
                 loss2 = mse(out2, img_clean_var).data
                 print ('Iteration %05d    Train loss %f  Actual loss %f Actual loss orig %f' % (i, trloss,true_loss,loss2), '\r', end='')
             
-            if show_images:
-                if i % 50 == 0:
-                    print(i)
-                    try:
-                        out_img_np = net( ni.type(dtype),scale_out=scale_out ).data.cpu().numpy()[0]
-                    except:
-                        out_img_np = net( ni.type(dtype) ).data.cpu().numpy()[0]
-                    myimgshow(plt,out_img_np)
-                    plt.show()
+            #if show_images:
+            #    if i % 50 == 0:
+            #        print(i)
+            #        try:
+            #            out_img_np = net( ni.type(dtype),scale_out=scale_out ).data.cpu().numpy()[0]
+            #        except:
+            #            out_img_np = net( ni.type(dtype) ).data.cpu().numpy()[0]
+            #        myimgshow(plt,out_img_np)
+            #        plt.show()
                     
-            if plot_after is not None:
-                if i in plot_after:
-                    try:
-                        out_imgs[ plot_after.index(i) ,:] = net( net_input_saved.type(dtype),scale_out=scale_out ).data.cpu().numpy()[0]
-                    except:
-                        out_imgs[ plot_after.index(i) ,:] = net( net_input_saved.type(dtype),scale_out=scale_out ).data.cpu().numpy()[0]
-            if output_weights:
-                out_weights[:,i] = np.array( get_distances( init_weights, get_weights(net) ) )
+            #if plot_after is not None:
+            #    if i in plot_after:
+            #        try:
+            #            out_imgs[ plot_after.index(i) ,:] = net( net_input_saved.type(dtype),scale_out=scale_out ).data.cpu().numpy()[0]
+            #        except:
+            #            out_imgs[ plot_after.index(i) ,:] = net( net_input_saved.type(dtype),scale_out=scale_out ).data.cpu().numpy()[0]
+            #if output_weights:
+            #    out_weights[:,i] = np.array( get_distances( init_weights, get_weights(net) ) )
             
             return loss   
         
@@ -292,22 +292,17 @@ def fit(net,
     if find_best:
         net = best_net
         net_input_saved = best_ni
-    if output_gradients and output_weights:
-        return scale_out,SSIMs,PSNRs,norm_ratio,mse_wrt_noisy, mse_wrt_truth,net_input_saved, net, out_grads
-    elif output_gradients:
-        return scale_out,SSIMs,PSNRs,norm_ratio,mse_wrt_noisy, mse_wrt_truth,net_input_saved, net, out_grads      
-    elif output_weights:
-        return scale_out,SSIMs,PSNRs,norm_ratio,mse_wrt_noisy, mse_wrt_truth,net_input_saved, net, out_weights
-    elif plot_after is not None:
-        return scale_out,SSIMs,PSNRs,norm_ratio,mse_wrt_noisy, mse_wrt_truth,net_input_saved, net, out_imgs
-    else:
-        return scale_out,SSIMs,PSNRs,norm_ratio,mse_wrt_noisy, mse_wrt_truth,net_input_saved, net       
+    #if output_gradients and output_weights:
+    #    return scale_out,SSIMs,PSNRs,norm_ratio,mse_wrt_noisy, mse_wrt_truth,net_input_saved, net, out_grads
+    #elif output_gradients:
+    #    return scale_out,SSIMs,PSNRs,norm_ratio,mse_wrt_noisy, mse_wrt_truth,net_input_saved, net, out_grads      
+    #elif output_weights:
+    #    return scale_out,SSIMs,PSNRs,norm_ratio,mse_wrt_noisy, mse_wrt_truth,net_input_saved, net, out_weights
+    #elif plot_after is not None:
+    #    return scale_out,SSIMs,PSNRs,norm_ratio,mse_wrt_noisy, mse_wrt_truth,net_input_saved, net, out_imgs
+    #else:
+    return scale_out,SSIMs,PSNRs,norm_ratio,mse_wrt_noisy, mse_wrt_truth,net_input_saved, net       
         
-
-
-
-
-
         ### weight regularization
         #if orth_reg > 0:
         #    for name, param in net.named_parameters():
