@@ -76,7 +76,7 @@ class conv_model(nn.Module):
         self.net2 = net2 # (default seting) one-layer net converting number of channels
         
     def forward(self, x, scale_out=1):
-    ''' run input thru net1 (convdecoder) then net2 (converts number of channels
+        ''' run input thru net1 (convdecoder) then net2 (converts number of channels
         provide options for skip connections (default False) and scaling factors (default 1) '''
         out1 = self.net1(x)
         if self.skips: # default False
