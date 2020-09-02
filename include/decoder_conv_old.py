@@ -9,13 +9,16 @@ def add_module(self, module):
 torch.nn.Module.add = add_module
 
 class conv_model(nn.Module):
-    def __init__(self, num_layers, strides, num_channels, out_depth, hidden_size, upsample_mode, act_fun, bn_affine=True, bias=False, need_last=False, kernel_size=3):
+    def __init__(self, num_layers, strides, num_channels, num_output_channels, hidden_size, upsample_mode, act_fun,sig=None, bn_affine=True, skips=False,intermeds=None,bias=False,need_lin_comb=False,need_last=False,kernel_size=3):
         super(conv_model, self).__init__()
         
         self.num_layers = num_layers
         self.hidden_size = hidden_size
         self.upsample_mode = upsample_mode
         self.act_fun = act_fun
+        self.sig= sig
+        self.skips = skips
+        self.intermeds = intermeds
         self.layer_inds = [] # record index of the layers that generate output in the sequential mode (after each BatchNorm)
         self.combinations = None # this holds input of the last layer which is upsampled versions of previous layers
         
@@ -30,9 +33,23 @@ class conv_model(nn.Module):
             net1.add(conv)
             cntr += 1
             
+            #net1.add(nn.BatchNorm2d( num_channels, affine=bn_affine))
             net1.add(act_fun)
             cntr += 1
             
+            if need_lin_comb: # default False
+                net1.add(nn.BatchNorm2d( num_channels, affine=bn_affine)) 
+                #net1.add(act_fun)
+                cntr += 1
+
+                net1.add(nn.Conv2d(num_channels, num_channels, 1, 1, padding=0, bias=bias))
+                cntr += 1
+
+                #net1.add(nn.BatchNorm2d( num_channels, affine=bn_affine))
+                net1.add(act_fun)
+                cntr += 1
+            
+            #net1.add(act_fun)
             net1.add(nn.BatchNorm2d( num_channels, affine=bn_affine))
             if i != num_layers - 2: # penultimate layer will automatically be concatenated if skip connection option is chosen
                 self.layer_inds.append(cntr)
@@ -41,14 +58,19 @@ class conv_model(nn.Module):
         net2 = nn.Sequential()
         
         nic = num_channels
+        if skips: # default False
+            nic = num_channels*( sum(intermeds)+1 )
         
-        if need_last: # orignal code default False, but we call it True
+        if need_last: # default False
             net2.add( nn.Conv2d(nic, num_channels, kernel_size, strides[i], padding=(kernel_size-1)//2, bias=bias) )
             net2.add(act_fun)
             net2.add(nn.BatchNorm2d( num_channels, affine=bn_affine))
             nic = num_channels
             
-        net2.add(nn.Conv2d(nic, out_depth, 1, 1, padding=0, bias=bias))
+        net2.add(nn.Conv2d(nic, num_output_channels, 1, 1, padding=0, bias=bias))
+        
+        if sig is not None: # default None
+            net2.add(self.sig)
         
         self.net1 = net1 # actual convdecoder network
         self.net2 = net2 # (default seting) one-layer net converting number of channels
@@ -57,6 +79,15 @@ class conv_model(nn.Module):
         ''' run input thru net1 (convdecoder) then net2 (converts number of channels
         provide options for skip connections (default False) and scaling factors (default 1) '''
         out1 = self.net1(x)
+        if self.skips: # default False
+            intermed_outs = []
+            for i,c in enumerate(self.net1):
+                if i+1 in self.layer_inds:
+                    f = self.net1[:i+1]
+                    intermed_outs.append(f(x))
+            intermed_outs = [intermed_outs[i] for i in range(len(intermed_outs)) if self.intermeds[i]]
+            intermed_outs = [self.up_sample(io) for io in intermed_outs]
+            out1 = torch.cat(intermed_outs+[out1],1)
         self.combinations = copy(out1)
         out2 = self.net2(out1)
         return out2*scale_out
@@ -67,20 +98,25 @@ class conv_model(nn.Module):
         return img
 
 def convdecoder(
-        in_size, #default [16,16]
-        out_size,#default [256,256]
-        out_depth, #default 3
-        num_layers, #default 6
-        strides, #default [1]*6,
-        num_channels, #default 64
-
-        kernel_size=3,
-        upsample_mode='nearest', #default 'bilinear', 
+        in_size = [16,16],
+        out_size = [256,256],
+        num_output_channels=3,
+        num_layers=6,
+        strides=[1]*6,
+        num_channels=64,
+        need_sigmoid=True, 
+        pad='reflection', 
+        upsample_mode='bilinear', 
         act_fun=nn.ReLU(), # nn.LeakyReLU(0.2, inplace=True) 
+        bn_before_act = False,
         bn_affine = True,
+        skips = True,
+        intermeds=None,
         nonlin_scales=False,
         bias=False,
-        need_last=True, #False,
+        need_lin_comb=False,
+        need_last=False,
+        kernel_size=3,
         ):
     
     ''' determine how to scale the network based on specified input size and output size
@@ -88,10 +124,7 @@ def convdecoder(
         e.g. input [8,4] and output [640,368] would yield hidden_size of:
             [(15, 8), (28, 15), (53, 28), (98, 53), (183, 102), (343, 193), (640, 368)]
         provide option for nonlinear scaling (default False) and different activation functions
-        call conv_model(...), defined above 
-
-        Note: I removed unnecessary args, e.g. skips, intermeds, pad, etc. 
-              decoder_conv_old.py for original code'''
+        call conv_model(...), defined above '''
 
     # scaling factor layer-to-layer in x and y direction
     # e.g. (scale_x, scale_y) = (1.87, 1.91)
@@ -106,11 +139,22 @@ def convdecoder(
                         int(np.ceil(scale_y**n * in_size[1]))) for n in range(1, (num_layers-1))] + [out_size]
     print(hidden_size)
     
-    model = conv_model(num_layers, strides, num_channels, out_depth, hidden_size,
+    if need_sigmoid: # default True
+        sig = nn.Sigmoid()
+        #sig = nn.Tanh()
+        #sig = nn.Softmax()
+    else:
+        sig = None
+    
+    model = conv_model(num_layers, strides, num_channels, num_output_channels, hidden_size,
                          upsample_mode=upsample_mode, 
                          act_fun=act_fun,
+                         sig=sig,
                          bn_affine=bn_affine,
+                         skips=skips,
+                         intermeds=intermeds,
                          bias=bias,
-                         need_last=need_last,
+                         need_lin_comb=need_lin_comb,
+                         need_last = need_last,
                          kernel_size=kernel_size,)
     return model

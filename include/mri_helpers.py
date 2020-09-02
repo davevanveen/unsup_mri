@@ -30,6 +30,8 @@ import scipy.ndimage
 
 
 def ksp2measurement(ksp):
+    ''' decompose input ksp into real, imag parts, i.e. adding a dimension
+        perform transpose and convert to torch var w np_to_var '''
     return np_to_var( np.transpose( np.array([np.real(ksp),np.imag(ksp)]) , (1, 2, 3, 0)) )   
 
 def lsreconstruction(measurement,mode='both'):
@@ -48,6 +50,7 @@ def lsreconstruction(measurement,mode='both'):
         return torch.sqrt(fimg[:,:,:,:,1]**2)
 
 def root_sum_of_squares2(lsimg):
+    ''' combine individual channels, e.g. 15, into one via standard rss '''
     out = np.zeros(lsimg[0].shape)
     for img in lsimg:
         out += img**2
