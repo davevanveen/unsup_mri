@@ -89,36 +89,37 @@ def forwardm(img,mask):
         Fimg[0,i,:,:,1] *= mask
     return Fimg
 
-def get_scale_factor(net,num_channels,in_size,slice_ksp,scale_out=1,scale_type="norm"): 
-    ''' return ni: network input, e.g. tensor w values sampled uniformly on [0,1]
+def get_scale_factor(net, num_channels, in_size, slice_ksp, scale_out=1, scale_type="norm"): 
+    ''' return net_input, e.g. tensor w values sampled uniformly on [0,1]
 
         return scaling factor, i.e. difference in magnitudes scaling b/w:
-        original image and random image of network output = net(ni) '''
+        original image and random image of network output = net(net_input) '''
         
 
-    # create net input ni, e.g. tensor with values sampled uniformly on [0,1]
+    # create net_input, e.g. tensor with values sampled uniformly on [0,1]
     shape = [1,num_channels, in_size[0], in_size[1]]
-    ni = Variable(torch.zeros(shape)).type(dtype)
-    ni.data.uniform_()
+    net_input = Variable(torch.zeros(shape)).type(dtype)
+    net_input.data.uniform_()
 
     # generate random image
     try:
-        out_chs = net( ni.type(dtype),scale_out=scale_out ).data.cpu().numpy()[0]
+        out_chs = net(net_input.type(dtype), scale_out=scale_out).data.cpu().numpy()[0]
     except:
-        out_chs = net( ni.type(dtype) ).data.cpu().numpy()[0]
+        out_chs = net(net_input.type(dtype)).data.cpu().numpy()[0]
     out_imgs = channels2imgs(out_chs)
-    out_img_tt = transform.root_sum_of_squares( torch.tensor(out_imgs) , dim=0)
+    out_img_tt = transform.root_sum_of_squares(torch.tensor(out_imgs), dim=0)
 
     ### get norm of least-squares reconstruction
     ksp_tt = transform.to_tensor(slice_ksp)
-    orig_tt = transform.ifft2(ksp_tt)           # Apply Inverse Fourier Transform to get the complex image
-    orig_imgs_tt = transform.complex_abs(orig_tt)   # Compute absolute value to get a real image
+    orig_tt = transform.ifft2(ksp_tt)   # apply ifft get the complex image
+    orig_imgs_tt = transform.complex_abs(orig_tt)   # compute absolute value to get a real image
     orig_img_tt = transform.root_sum_of_squares(orig_imgs_tt, dim=0)
     orig_img_np = orig_img_tt.cpu().numpy()
     
     if scale_type == "norm":
-        s = np.linalg.norm(out_img_tt) / np.linalg.norm(orig_img_np)
+        scale = np.linalg.norm(out_img_tt) / np.linalg.norm(orig_img_np)
     if scale_type == "mean":
-        s = (out_img_tt.mean() / orig_img_np.mean()).numpy()[np.newaxis][0]
-    return s, ni
+        scale = (out_img_tt.mean() / orig_img_np.mean()).numpy()[np.newaxis][0]
+    
+    return scale, net_input
 
