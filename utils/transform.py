@@ -4,23 +4,23 @@ import os, sys
 import numpy as np
 import torch
 
-def to_tensor(arr):
+def np_to_tt(arr):
     ''' convert numpy array to torch tensor
         if arr is complex, real/imag parts stacked on last dimn '''
     if np.iscomplexobj(arr):
         arr = np.stack((arr.real, arr.imag), axis=-1)
     return torch.from_numpy(arr)
 
-def to_np(arr):
+def var_to_np(arr):
     ''' converts torch.Variable to numpy array
         shape [1, C, W, H] --> [C, W, H] '''
-    return arr.arr.cpu().numpy()[0]
+    return arr.data.cpu().numpy()[0]
 
 def np_to_var(arr):
     ''' converts image in numpy.array to torch.Variable.
     From C x W x H [0..1] to  1 x C x W x H [0..1]
     '''
-    return Variable(np_to_tensor(arr)[None, :])
+    return Variable(np_to_tt(arr)[None, :])
 
 def ifft_2d(arr):
     ''' apply centered 2D inverse fast fourier transform

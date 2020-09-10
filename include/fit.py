@@ -42,114 +42,122 @@ class MSLELoss(torch.nn.Module):
         loss = torch.log(criterion(x, y))
         return loss
 
-def fit(net,
-        img_noisy_var,
-        img_clean_var,
-        num_channels,
-        net_input, # default None but arg always specified in ipynb
-        mask, # default None but arg always specified as mask2d in ipynb
-        num_iter = 5000,
-        LR = 0.01, # arg sometimes specified as 0.008 in ipynb
-        apply_f = forwardm, # default None but arg always specified as forwardm in ipynb
-        lsimg = None, # default None but arg always specified in ipynb
-        find_best=False, # default False but arg always specified to True in ipynb
-        scale_out=1, # default 1, arg sometimes specified as 1 in ipynb
-       ):
+def fit(ksp_masked, img_masked, net, net_input, mask, 
+        num_iter=5000, lr=0.01, apply_f=forwardm, img_ls=None):
+    ''' fit a network to masked k-space measurement
+        args:
+            ksp_masked: masked k-space of a single slice. torch variable [1,C,H,W]
+            img_masked: ifft(ksp_masked). torch variable [1,C,H,W]
+            net: original network with randomly initiated weights
+            net_input: randomly generated + scaled network input
+            mask: 2D mask for undersampling the ksp
+            num_iter: number of iterations to optimize network
+            lr: learning rate
+            apply_f: function used to convert img to ksp, apply mask, and return masked ksp
+            img_ls: least-squares image, i.e. ifft(ksp_full)
+                    only needed to compute ssim, psnr over each iteration
+        returns:
+            net: the best network, whose output would be in image space
+            mse_wrt_ksp: mse(ksp_masked, fft(out)*mask) over each iteration
+            mse_wrt_img: mse(img_masked, out) over each iteration
+    '''
 
     ### initialize variables ############### 
-    # note: original code initialied out_grads, out_weights + gave option to optimize over input
+    # note: original code initialized out_grads, out_weights + gave opt_input option
     
     if net_input is None: # need to generate net_input via upsampling, rehaping, scaling
-        print('incorporate original code here')
-        sys.exit()
+        raise NotImplementedError('incorporate original code here')
     net_input = net_input.type(dtype)
     net_input_saved = net_input.data.clone()
     noise = net_input.data.clone()
 
     p = [x for x in net.parameters()]
     out_imgs = np.zeros((1,1))
-    if find_best:
-        best_net = copy.deepcopy(net)
-        best_mse = 1000000.0
+    
+    best_net = copy.deepcopy(net)
+    best_mse = 1000000.0
 
-    mse_wrt_noisy, mse_wrt_truth = np.zeros(num_iter), np.zeros(num_iter)
+    mse_wrt_ksp, mse_wrt_img = np.zeros(num_iter), np.zeros(num_iter)
     psnr_list, ssim_list, norm_ratio = [], [], []
     ########################################
 
-    print("optimize with adam", LR)
-    optimizer = torch.optim.Adam(p, lr=LR,weight_decay=0)
+    print("optimize with adam", lr)
+    optimizer = torch.optim.Adam(p, lr=lr,weight_decay=0)
     mse = torch.nn.MSELoss()
     
     for i in range(num_iter):
         
-        def closure():
-            ''' original code adjusted scaling of input
-                              had try/except statement for scale_out factor when computing out and out2
-                              applied mask when computing loss = mse( , )
-                              provided option for showing images, plotting stuff, and outputting weights'''
+        def closure(): # execute this for each iteration (gradient step)
+            ''' original code...
+                - adjusted scaling of input
+                - had try/except statement for scale_out factor when computing out and out2
+                - applied mask when computing loss = mse( , )
+                - provided option for showing imgs, plotting stuff, and outputting weights'''
             
             optimizer.zero_grad()
-            out = net(net_input) 
-                
-            # training loss
-            loss = mse(apply_f(out,mask), img_noisy_var)
-            loss.backward(retain_graph=False)
+            out = net(net_input) # out is in image space
             
-            mse_wrt_noisy[i] = loss.data.cpu().numpy()
+            # loss w.r.t. our masked k-space measurements
+            # apply_f() = forwardm() converts input image to k-space, applies mask, and returns the masked k-space... confusing
+            # TODO: make this apply_f call less confusing. compare forwardm to utils.transform.apply_mask()
+            loss_ksp = mse(apply_f(out, mask), ksp_masked)
+            # TODO: understand why we backprop on loss_ksp and not loss_img
+            loss_ksp.backward(retain_graph=False)
+            mse_wrt_ksp[i] = loss_ksp.data.cpu().numpy()
 
-            # the actual loss TODO: figure out difference b/w training and "actual" loss
-            true_loss = mse( Variable(out.data, requires_grad=False).type(dtype), img_clean_var.type(dtype) )
-            mse_wrt_truth[i] = true_loss.data.cpu().numpy()
+            # loss in image space
+            out_var = Variable(out.data, requires_grad=False).type(dtype)
+            loss_img = mse(out_var, img_masked.type(dtype) )
+            mse_wrt_img[i] = loss_img.data.cpu().numpy()
             
             if i % 100 == 0:
-                if lsimg is not None: # compute ssim and psnr
-                    
-                    orig = crop_center2(root_sum_of_squares2(var_to_np(lsimg)), 320, 320) # least sq recon
-                    out_chs = out.data.cpu().numpy()[0]
-                    out_imgs = channels2imgs(out_chs)
-                    rec = crop_center2(root_sum_of_squares2(out_imgs), 320, 320) # deep decoder recon
+                if img_ls is not None: # compute ssim and psnr
+                   
+                    raise NotImplementedError('uncomment code below for computing ssim, psnr across iterations w unmasked least-squares recon')
+                    #orig = crop_center2(root_sum_of_squares2(var_to_np(img_ls)), 320, 320) # least sq recon
+                    #out_chs = out.data.cpu().numpy()[0]
+                    #out_imgs = channels2imgs(out_chs)
+                    #rec = crop_center2(root_sum_of_squares2(out_imgs), 320, 320) # deep decoder recon
 
-                    ssim_list.append(ssim(orig, rec, data_range=orig.max()))
-                    psnr_list.append(psnr(orig, rec, np.max(orig)))
+                    #ssim_list.append(ssim(orig, rec, data_range=orig.max()))
+                    #psnr_list.append(psnr(orig, rec, np.max(orig)))
 
-                    norm_out_img = np.linalg.norm(root_sum_of_squares2(out_imgs))
-                    norm_lsimg = np.linalg.norm(root_sum_of_squares2(var_to_np(lsimg)))
-                    norm_ratio.append(norm_out_img / norm_lsimg)
+                    #norm_out_img = np.linalg.norm(root_sum_of_squares2(out_imgs))
+                    #norm_img_ls = np.linalg.norm(root_sum_of_squares2(var_to_np(img_ls)))
+                    #norm_ratio.append(norm_out_img / norm_img_ls)
                 
-                trn_loss = loss.data
-                true_loss = true_loss.data
+                loss_ksp = loss_ksp.data
+                loss_img = loss_img.data
                 out2 = net(Variable(net_input_saved).type(dtype))
-                loss2 = mse(out2, img_clean_var).data
-                print ('Iteration %05d    Train loss %f  Actual loss %f Actual loss orig %f' % (i, trn_loss,true_loss,loss2), '\r', end='')
+                loss2 = mse(out2, img_masked).data
+                print ('Iteration %05d  kspace (training) loss %f  image loss %f image loss orig (?) %f' % (i, loss_ksp,loss_img,loss2), '\r', end='')
             
-            return loss   
+            return loss_ksp   
         
         loss = optimizer.step(closure)
-            
-        if find_best:
-            # if training loss improves by at least one percent, we found a new best net
-            lossval = loss.data
-            if best_mse > 1.005*lossval:
-                best_mse = lossval
-                best_net = copy.deepcopy(net)
-                #if opt_input:
-                #    best_ni = net_input.data.clone()
-                #else:
-                best_ni = net_input_saved.clone()
-       
-    if find_best:
-        net = best_net
-        net_input_saved = best_ni
-    
-    # original code had different return options for output_gradients, output_weights, output_images, etc.
-    return ssim_list, psnr_list, norm_ratio, mse_wrt_noisy, mse_wrt_truth, net_input_saved, net       
         
+        # at each iteration, check if loss improves by 1%. if so, a new best net
+        loss_val = loss.data
+        if best_mse > 1.005*loss_val:
+            best_mse = loss_val
+            best_net = copy.deepcopy(net)
+            #if opt_input:
+            #    best_ni = net_input.data.clone()
+            #else:
+            best_net_input = net_input_saved.clone()
+    
+    net = best_net
+    
+    # orig code had return options for output_gradients, output_weights, output_images, etc.
+    return ssim_list, psnr_list, norm_ratio, mse_wrt_ksp, mse_wrt_img, best_net_input, net  
+
+
         
 def fit_multiple(net,
         imgs, # list of images [ [1, color channels, W, H] ] 
         num_channels,
         num_iter = 5000,
-        LR = 0.01,
+        lr = 0.01,
         find_best=False,
         upsample_mode="bilinear",
        ):
@@ -178,7 +186,7 @@ def fit_multiple(net,
 
     mse_wrt_noisy = np.zeros(num_iter)
 
-    optimizer = torch.optim.Adam(p, lr=LR)
+    optimizer = torch.optim.Adam(p, lr=lr)
 
     mse = torch.nn.MSELoss() #.type(dtype) 
 
