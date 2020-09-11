@@ -1,8 +1,14 @@
-''' Various fucntions for data transformations '''
+''' various fucntions for data transformations '''
 
 import os, sys
 import numpy as np
 import torch
+from torch.autograd import Variable
+
+if torch.cuda.is_available():
+    dtype = torch.cuda.FloatTensor
+else:
+    dtype = torch.FloatTensor
 
 def np_to_tt(arr):
     ''' convert numpy array to torch tensor
@@ -22,9 +28,54 @@ def np_to_var(arr):
     '''
     return Variable(np_to_tt(arr)[None, :])
 
+def split_complex_vals(ksp):
+    ''' given complex npy array, split real/complex vals into two channels 
+        e.g. shape (15,x,y) --> (15,x,y,2) '''
+    return np.transpose(np.array([np.real(ksp),np.imag(ksp)]), (1, 2, 3, 0))
+
+def reshape_complex_channels_to_be_adj(arr):
+    ''' e.g. reshape numpy arr shape (15,x,y,2) --> (30,x,y) '''
+    arr_out = []
+    for a in arr:
+        arr_out += [a[:,:,0], a[:,:,1]]
+    return np.array(arr_out)
+
+def reshape_complex_channels_to_sep_dimn(arr):
+    ''' e.g. reshape torch tensor shape [(30,x,y)] --> [(15,x,y,2)] '''
+
+    num_slices = int(arr.shape[0]/2) # 15*2=30, i.e. real/complex separate
+
+    shape_out = (num_slices, arr.shape[1], arr.shape[2], 2)
+    arr_out = torch.zeros(shape_out)
+    for i in range(num_slices):
+        arr_out[i,:,:,0] = arr[2*i,:,:]
+        arr_out[i,:,:,1] = arr[2*i+1,:,:]
+
+    return arr_out
+
+def combine_complex_channels(arr):
+    ''' e.g. given npy array of shape (30,x,y)
+        combine real/complex values into a single magnitude
+        return a npy array of shape (15,x,y) '''
+    num_coils = int(arr.shape[0]/2)
+    arr_out = np.zeros((num_coils, arr.shape[1], arr.shape[2]))
+    for i in range(num_coils):
+        arr_out[i] = np.sqrt(arr[2*i]**2 + arr[2*i+1]**2)
+    return arr_out
+
+def crop_center(arr, crop_x, crop_y):
+    ''' given 2D npy array, crop center area according to given dimns cropx, cropy '''
+    x0 = (arr.shape[1] // 2) - (crop_x // 2)
+    y0 = (arr.shape[0] // 2) - (crop_y // 2)
+    return arr[y0:y0+crop_y, x0:x0+crop_x]
+
+def root_sum_of_squares(arr):
+    ''' given 3D npy array e.g. 2D slices from multiple coils
+        combine each slice into a single 2D array via rss '''
+    return np.sqrt(np.sum(np.square(arr), axis=0))
+
 def ifft_2d(arr):
     ''' apply centered 2D inverse fast fourier transform
-    
         args:
             arr (torch.Tensor): complex valued input arr containing at least 3 dimns: dimns
             -3 & -2 are spatial dimns and dimn -1 has size 2. all other dimns are
@@ -34,6 +85,20 @@ def ifft_2d(arr):
     assert arr.size(-1) == 2
     arr = ifftshift(arr, dim=(-3, -2))
     arr = torch.ifft(arr, 2, normalized=True)
+    arr = fftshift(arr, dim=(-3, -2))
+    return arr
+
+def fft_2d(arr):
+    ''' apply centered 2D fast fourier transform
+        args:
+            arr (torch.Tensor): complex valued input arr containing at least 3 dimns: dimns
+            -3 & -2 are spatial dimns and dimn -1 has size 2. all other dimns are
+            assumed to be batch dimns.
+        returns: fft of input (torch.Tensor)
+    '''
+    assert arr.size(-1) == 2
+    arr = ifftshift(arr, dim=(-3, -2))
+    arr = torch.fft(arr, 2, normalized=True)
     arr = fftshift(arr, dim=(-3, -2))
     return arr
 
