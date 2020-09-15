@@ -73,7 +73,7 @@ def channels2imgs(out):
         imgs[i] = np.sqrt( out[2*i]**2 + out[2*i+1]**2 )
     return imgs
 
-def forwardm(img,mask):
+def forwardm(img, mask):
     # img has dimension (2*num_slices, x,y)
     # output has dimension (1, num_slices, x, y, 2)
     mask = np_to_var(mask)[0].type(dtype)
@@ -89,7 +89,7 @@ def forwardm(img,mask):
         Fimg[0,i,:,:,1] *= mask
     return Fimg
 
-def get_scale_factor(net, num_channels, in_size, slice_ksp, scale_out=1, scale_type="norm"): 
+def get_scale_factor(net, num_channels, in_size, slice_ksp, scale_out=1, scale_type='norm'):#, dtype=torch.cuda.FloatTensor): 
     ''' return net_input, e.g. tensor w values sampled uniformly on [0,1]
 
         return scaling factor, i.e. difference in magnitudes scaling b/w:

@@ -18,8 +18,10 @@ class conv_model(nn.Module):
         self.act_fun = act_fun
         self.layer_inds = [] # record index of the layers that generate output in the sequential mode (after each BatchNorm)
         self.combinations = None # this holds input of the last layer which is upsampled versions of previous layers
-        
+        #self.dtype = dtype
+
         cntr = 1
+        #torch.set_default_tensor_type(dtype)
         net1 = nn.Sequential()
         for i in range(num_layers-1):
             
@@ -112,5 +114,6 @@ def convdecoder(
                          bn_affine=bn_affine,
                          bias=bias,
                          need_last=need_last,
-                         kernel_size=kernel_size,)
+                         kernel_size=kernel_size)#,
+                         #dtype=dtype)
     return model
