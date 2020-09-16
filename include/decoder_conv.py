@@ -106,7 +106,7 @@ def convdecoder(
     else:
         hidden_size = [(int(np.ceil(scale_x**n * in_size[0])),
                         int(np.ceil(scale_y**n * in_size[1]))) for n in range(1, (num_layers-1))] + [out_size]
-    print(hidden_size)
+    #print(hidden_size)
     
     model = conv_model(num_layers, strides, num_channels, out_depth, hidden_size,
                          upsample_mode=upsample_mode, 

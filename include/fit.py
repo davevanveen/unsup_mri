@@ -82,7 +82,7 @@ def fit(ksp_masked, img_masked, net, net_input, mask,
     psnr_list, ssim_list, norm_ratio = [], [], []
     ########################################
 
-    print("optimize with adam", lr)
+    #print("optimize with adam", lr)
     optimizer = torch.optim.Adam(p, lr=lr,weight_decay=0)
     mse = torch.nn.MSELoss()
 
@@ -91,6 +91,7 @@ def fit(ksp_masked, img_masked, net, net_input, mask,
                                     'iterations w unmasked least-squares recon')
 
     #torch.set_default_dtype(torch.float16)
+    psnr_list, ssim_list = [], []
 
     for i in range(num_iter):
         def closure(): # execute this for each iteration (gradient step)
@@ -119,9 +120,12 @@ def fit(ksp_masked, img_masked, net, net_input, mask,
             loss_img = mse(out, img_masked.type(dtype) )
             mse_wrt_img[i] = loss_img.data.cpu().numpy()
 
-            if i % 100 == 0:
-                print ('Iteration %05d  ksp (train) loss %f  img loss %f' \
-                        % (i, loss_ksp,loss_img), '\r', end='')
+            #if i % 100 == 0:
+                #out_chs = out.data.cpu().numpy()[0]
+                #out_imgs = channels2imgs(out_chs)
+                #orig = crop_center2(root_sum_of_squares2(var_to_np(ls_img)))
+            #    print ('Iteration %05d  ksp (train) loss %f  img loss %f' \
+            #            % (i, loss_ksp,loss_img), '\r', end='')
             
             return loss_ksp   
  
