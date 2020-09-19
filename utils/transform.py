@@ -5,10 +5,25 @@ import numpy as np
 import torch
 from torch.autograd import Variable
 
-if torch.cuda.is_available():
-    dtype = torch.cuda.FloatTensor
-else:
-    dtype = torch.FloatTensor
+
+def recon_ksp_to_img(ksp, dim=320):
+    ''' given a 3D npy array (or torch tensor) ksp k-space e.g. shape (15,x,y)
+        (1) perform ifft to img space
+        (2) reshape/combine complex channels
+        (3) combine multiple coils via root sum of squares
+        (4) crop center portion of image according to dim
+    '''
+
+    if type(ksp).__module__ == np.__name__:
+        ksp = np_to_tt(ksp)
+
+    arr = ifft_2d(ksp).cpu().numpy()
+    arr = reshape_complex_channels_to_be_adj(arr)
+    arr = combine_complex_channels(arr) # e.g. shape (30,x,y) --> (15,x,y)
+    arr = root_sum_of_squares(arr) # e.g. (15,x,y) --> (x,y)
+    arr = crop_center(arr, dim, dim) # e.g. (x,y) --> (dim,dim)
+
+    return arr
 
 def np_to_tt(arr):
     ''' convert numpy array to torch tensor
@@ -120,8 +135,7 @@ def apply_mask(arr, mask=None, mask_func=None, seed=None):
     '''
     
     if mask is None:
-        print('Want to generate new mask here')
-        sys.exit()
+        raise NotImplementedError('Need to gnerate new mask')
         #shape = np.array(arr.shape)
         #shape[:-3] = 1
         #mask = mask_func(shape, seed)

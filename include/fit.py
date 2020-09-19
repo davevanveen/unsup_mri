@@ -14,8 +14,6 @@ from .transforms import *
 #dtype = torch.cuda.FloatTensor
 #dtype = torch.FloatTensor
 
-
-
 # original code had exp_lr_scheduler() to decay lr by 0.1 every lr_decay_epoch epochs
 
 def sqnorm(a):
@@ -44,73 +42,66 @@ class MSLELoss(torch.nn.Module):
         loss = torch.log(criterion(x, y))
         return loss
 
-def fit(ksp_masked, img_masked, net, net_input, mask, 
-        num_iter=5000, lr=0.01, apply_f=forwardm, img_ls=None, dtype=torch.cuda.FloatTensor):
+def fit(ksp_masked, img_masked, net, net_input, mask2d, 
+        mask1d=None, ksp_orig=None, DC_STEP=False,
+        num_iter=5000, lr=0.01, img_ls=None, dtype=torch.cuda.FloatTensor):
     ''' fit a network to masked k-space measurement
         args:
             ksp_masked: masked k-space of a single slice. torch variable [1,C,H,W]
             img_masked: ifft(ksp_masked). torch variable [1,C,H,W]
             net: original network with randomly initiated weights
             net_input: randomly generated + scaled network input
-            mask: 2D mask for undersampling the ksp
+            mask2d: 2D mask for undersampling the ksp
+            mask1d: 1D mask for data consistency step. boolean torch tensor size [y]
+            ksp_orig: orig ksp meas for data consistency step. torch tensor [15,x,y,2]
+            DC_STEP: (boolean) do data consistency step during network fit
             num_iter: number of iterations to optimize network
             lr: learning rate
-            apply_f: function used to convert img to ksp, apply mask, and return masked ksp
             img_ls: least-squares image, i.e. ifft(ksp_full)
                     only needed to compute ssim, psnr over each iteration
         returns:
             net: the best network, whose output would be in image space
             mse_wrt_ksp: mse(ksp_masked, fft(out)*mask) over each iteration
             mse_wrt_img: mse(img_masked, out) over each iteration
-    '''
-
-    ### initialize variables ############### 
-    # note: original code initialized out_grads, out_weights + gave opt_input option
     
-    if net_input is None: # need to generate net_input via upsampling, rehaping, scaling
+        notes on the original code via heckel paper
+            - initialized out_grads, out_weights, + gave opt_input option
+            - gave option to generate net_input via upsampling, reshaping, scaling
+            - within closure()
+                - adjusted scaling of input
+                - applied mask when computing loss = mse( , )
+                - provided option for showing imgs, plotting stuff, and outputting weights
+                - if opt_input=True, would save best_net_input
+                - computed ssim, psnr, across iterations w unmasked least-squares recon
+                    - requires img_ls argument
+            - returned many additional variables
+    '''            
+
+    # initialize variables
+    if img_ls is not None or net_input is None: 
         raise NotImplementedError('incorporate original code here')
     net_input = net_input.type(dtype)
-    noise = net_input.data.clone()
-
-    p = [x for x in net.parameters()]
-    out_imgs = np.zeros((1,1))
-    
     best_net = copy.deepcopy(net)
     best_mse = 10000.0
-
     mse_wrt_ksp, mse_wrt_img = np.zeros(num_iter), np.zeros(num_iter)
-    psnr_list, ssim_list, norm_ratio = [], [], []
-    ########################################
-
-    #print("optimize with adam", lr)
+    
+    p = [x for x in net.parameters()]
     optimizer = torch.optim.Adam(p, lr=lr,weight_decay=0)
     mse = torch.nn.MSELoss()
 
-    if img_ls is not None: 
-        raise NotImplementedError('see original code to compute ssim, psnr across ' \
-                                    'iterations w unmasked least-squares recon')
-
-    #torch.set_default_dtype(torch.float16)
-    psnr_list, ssim_list = [], []
-
     for i in range(num_iter):
         def closure(): # execute this for each iteration (gradient step)
-            ''' original code...
-                - adjusted scaling of input
-                - had try/except statement for scale_out factor when computing out and out2
-                - applied mask when computing loss = mse( , )
-                - provided option for showing imgs, plotting stuff, and outputting weights
-                - if opt_input=True, would save best_net_input and every 100 iterations compute:
-                                     loss_img when out = net(best_net_input) vs when
-                                                   out = net(net_input_saved), i.e. original'''
+            
             optimizer.zero_grad()
+            
             out = net(net_input) # out is in image space
 
-            # loss w.r.t. our masked k-space measurements
-            # apply_f() = forwardm() converts input image to k-space, applies mask, and returns the masked k-space... confusing
-            # TODO: make this apply_f call less confusing. compare forwardm to utils.transform.apply_mask()
-            # make apply_f().half() if want to do with half precision i.e. torch.cuda.HalfTensor
-            loss_ksp = mse(apply_f(out, mask), ksp_masked)
+            # forwardm(): converts img to ksp, apply mask, and return the masked ksp
+                # TODO: compare forwardm to utils.transform.apply_mask()
+                # add forwardm().half() to do with half precision
+            out_ksp_masked = forwardm(out, mask2d)
+            
+            loss_ksp = mse(out_ksp_masked, ksp_masked) # loss w.r.t. masked k-space
             # TODO: understand why we backprop on loss_ksp and not loss_img
             loss_ksp.backward(retain_graph=False)
             
@@ -120,19 +111,8 @@ def fit(ksp_masked, img_masked, net, net_input, mask,
             loss_img = mse(out, img_masked.type(dtype) )
             mse_wrt_img[i] = loss_img.data.cpu().numpy()
 
-            #if i % 100 == 0:
-                #out_chs = out.data.cpu().numpy()[0]
-                #out_imgs = channels2imgs(out_chs)
-                #orig = crop_center2(root_sum_of_squares2(var_to_np(ls_img)))
-            #    print ('Iteration %05d  ksp (train) loss %f  img loss %f' \
-            #            % (i, loss_ksp,loss_img), '\r', end='')
-            
             return loss_ksp   
  
-        # during forward/backward steps, use half precision
-        # during update step, convert the weights to single precision
-        # OR multiply by scaling factor S, then 1/S
-        # OR by using autocast, which is not available in my version of torch
         loss = optimizer.step(closure)
 
         # at each iteration, check if loss improves by 1%. if so, a new best net
@@ -140,12 +120,8 @@ def fit(ksp_masked, img_masked, net, net_input, mask,
         if best_mse > 1.005*loss_val:
             best_mse = loss_val
             best_net = copy.deepcopy(net)
-  
-    net = best_net
     
-    # orig code had return options for output_gradients, output_weights, output_images,
-    #                                  ssim_list, psnr_list, norm_ratio, best_net_input
-    return net, mse_wrt_ksp, mse_wrt_img
+    return best_net, mse_wrt_ksp, mse_wrt_img
 
 
         

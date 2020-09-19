@@ -1,10 +1,4 @@
-"""
-Copyright (c) Facebook, Inc. and its affiliates.
-
-This source code is licensed under the MIT license found in the
-LICENSE file in the root directory of this source tree.
-"""
-
+''' various functions for computing image quality metrics '''
 import argparse
 import pathlib
 from argparse import ArgumentParser
@@ -15,6 +9,36 @@ import numpy as np
 from runstats import Statistics
 from skimage.measure import compare_psnr, compare_ssim
 
+
+def normalize_img(img_out, img_gt):
+    ''' normalize the pixel values in im_gt according to (mean, std) of im_out
+        verified: step is necessary '''
+    
+    if img_out.mean() < img_gt.mean():
+        raise NotImplementedError('assumes img_gt has smaller pixel vals')
+
+    img_gt = (img_gt - img_gt.mean()) / img_gt.std()
+    img_gt *= img_out.std()
+    img_gt += img_out.mean()
+    
+    return img_gt
+
+def calc_metrics(img_out, img_gt):
+    ''' compute vif, ssim, and psnr of img_out using im_gt as ground-truth reference '''
+   
+    img_gt = normalize_img(img_out, img_gt)
+    
+    vif_ = vifp_mscale(img_out, img_gt, sigma_nsq=img_out.mean())
+    ssim_ = ssim(np.array([img_out]), np.array([img_gt]))
+    psnr_ = psnr(np.array([img_out]), np.array([img_gt]))
+    
+    dt = torch.FloatTensor
+    img_out_t = torch.from_numpy(np.array([[img_out]])).type(dt)
+    img_gt_t = torch.from_numpy(np.array([[img_gt]])).type(dt)
+    msssim_ = ms_ssim(img_out_t, img_gt_t, data_range=img_gt_t.max())
+    msssim_ = msssim_.data.cpu().numpy()[np.newaxis][0]
+    
+    return vif_, msssim_, ssim_, psnr_ 
 
 def mse(gt, pred):
     """ Compute Mean Squared Error (MSE) """
