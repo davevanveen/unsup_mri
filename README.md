@@ -1,13 +1,11 @@
 # ConvDecoder
 
-<p align="center"><img src="./ConvDecoder_architecture/ConvDecoder.JPG" width="650" height="175"></p>
-
 <br>
 This repository provides code for reproducing the results in the paper:
 
 **''Can Un-trained Neural Networks Compete with Trained Neural Networks at Image Reconstruction?,''** by Mohammad Zalbagi Darestani and Reinhard Heckel
 
-Code by: Mohammad Zalbagi Darestani (mz35@rice.edu) and Reinhard Heckel (rh43@rice.edu)
+This code is adapted from original work by: Mohammad Zalbagi Darestani (mz35@rice.edu) and Reinhard Heckel (rh43@rice.edu)
 ***
 
 The aim of the code is to investigate the capability of different un-trained methods, including our proposed ConvDecoder, for the MRI acceleration problem. The task is to recover a fine image from a few measurements. In this regard, we specifically provide experiments to: 
