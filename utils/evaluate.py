@@ -6,8 +6,11 @@ from argparse import ArgumentParser
 import h5py
 import scipy
 import numpy as np
+import torch
 from runstats import Statistics
-from skimage.measure import compare_psnr, compare_ssim
+from skimage.metrics import peak_signal_noise_ratio as compare_psnr, \
+                            structural_similarity as compare_ssim
+from pytorch_msssim import ms_ssim
 
 
 def normalize_img(img_out, img_gt):
@@ -27,7 +30,7 @@ def calc_metrics(img_out, img_gt):
     ''' compute vif, ssim, and psnr of img_out using im_gt as ground-truth reference '''
    
     img_gt = normalize_img(img_out, img_gt)
-    
+
     vif_ = vifp_mscale(img_out, img_gt, sigma_nsq=img_out.mean())
     ssim_ = ssim(np.array([img_out]), np.array([img_gt]))
     psnr_ = psnr(np.array([img_out]), np.array([img_gt]))

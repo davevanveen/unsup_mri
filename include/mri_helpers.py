@@ -1,77 +1,66 @@
 import torch 
-import torch.nn as nn
 import torchvision
-import sys
-
+import os, sys
 import numpy as np
 from PIL import Image
 import PIL
-import numpy as np
-
 from torch.autograd import Variable
-
-import random
-import numpy as np
-import torch
 import matplotlib.pyplot as plt
 
-from PIL import Image
-import PIL
+from . import transforms as transform
+from .helpers import np_to_var
 
-from torch.autograd import Variable
+from utils.transform import np_to_tt, np_to_var, apply_mask, ifft_2d, fft_2d, \
+                            reshape_complex_channels_to_sep_dimn, \
+                            reshape_complex_channels_to_be_adj, \
+                            split_complex_vals, recon_ksp_to_img
+
 dtype = torch.cuda.FloatTensor
 
-from . import transforms as transform
-from .helpers import var_to_np,np_to_var
 
-import numpy
-import scipy.signal
-import scipy.ndimage
+def get_masked_measurements(slice_ksp, mask):
+    ''' parameters: 
+                slice_ksp: original, unmasked k-space measurements
+                mask: mask used to downsample original k-space
+        return:
+                ksp_masked: masked measurements to fit
+                img_masked: masked image, i.e. ifft(ksp_masked) '''
 
+    # mask the kspace
+    ksp_masked = apply_mask(np_to_tt(slice_ksp), mask=mask)
+    ksp_masked = np_to_var(ksp_masked.data.cpu().numpy()).type(dtype)
 
-def ksp2measurement(ksp):
-    ''' decompose input ksp into real, imag parts, i.e. adding a dimension
-        perform transpose and convert to torch var w np_to_var '''
-    return np_to_var( np.transpose( np.array([np.real(ksp),np.imag(ksp)]) , (1, 2, 3, 0)) )   
-
-def lsreconstruction(measurement,mode='both'):
-    ''' given measurement of dimn (1, num_slices, x, y, 2), 
-        take ifft and return either the
-        real components, imag components, or combined magnitude '''
+    # perform ifft of masked kspace
+    img_masked = ifft_2d(ksp_masked[0]).cpu().numpy()
+    img_masked = reshape_complex_channels_to_be_adj(img_masked)
+    img_masked = np_to_var(img_masked).type(dtype)
     
-    fimg = transform.ifft2(measurement)
-    #print("real/img parts: ", torch.norm(fimg[:,:,:,:,0]), torch.norm(fimg[:,:,:,:,1]))
+    return ksp_masked, img_masked
+
+def data_consistency(img_out, slice_ksp, mask1d):
+    ''' perform data-consistency step 
+        parameters:
+                img_out: network output image
+                slice_ksp: original k-space measurements 
+        return:
+                img_dc: data-consistent output image
+                img_est: output image without data consistency '''
     
-    if mode == 'both':
-        return torch.sqrt(fimg[:,:,:,:,0]**2 + fimg[:,:,:,:,1]**2)
-    elif mode == 'real':
-        return torch.tensor(fimg[:,:,:,:,0]) #torch.sqrt(fimg[:,:,:,:,0]**2)
-    elif mode == 'imag':
-        return torch.sqrt(fimg[:,:,:,:,1]**2)
+    img_out = reshape_complex_channels_to_sep_dimn(img_out)
 
-def root_sum_of_squares2(lsimg):
-    ''' combine individual channels, e.g. 15, into one via standard rss '''
-    out = np.zeros(lsimg[0].shape)
-    for img in lsimg:
-        out += img**2
-    return np.sqrt(out)
+    # now get F*G(\hat{C}), i.e. estimated recon in k-space
+    ksp_est = fft_2d(img_out) # ([15, 640, 368, 2])
+    ksp_orig = np_to_tt(split_complex_vals(slice_ksp)) # ([15, 640, 368, 2]); slice_ksp (15,640,368) complex
 
-def crop_center2(img,cropx,cropy):
-    y,x = img.shape
-    startx = x//2-(cropx//2)
-    starty = y//2-(cropy//2)    
-    return img[starty:starty+cropy,startx:startx+cropx]
+    # replace estimated coeffs in k-space by original coeffs if it has been sampled
+    mask1d = torch.from_numpy(np.array(mask1d, dtype=np.uint8)) # shape: torch.Size([368]) w 41 non-zero elements
+    ksp_dc = ksp_est.clone().detach().cpu()
+    ksp_dc[:,:,mask1d==1,:] = ksp_orig[:,:,mask1d==1,:]
 
-def channels2imgs(out):
-    ''' for entire input array,
-        compute magnitude of adjacent two channels (complex values)
-        and combine them into one image '''
-    sh = out.shape
-    chs = int(sh[0]/2)
-    imgs = np.zeros( (chs,sh[1],sh[2]) )
-    for i in range(chs):
-        imgs[i] = np.sqrt( out[2*i]**2 + out[2*i+1]**2 )
-    return imgs
+    img_dc = recon_ksp_to_img(ksp_dc)
+    img_est = recon_ksp_to_img(ksp_est.detach().cpu())
+    
+    return img_dc, img_est
 
 def forwardm(img, mask):
     # img has dimension (2*num_slices, x,y)
@@ -123,3 +112,25 @@ def get_scale_factor(net, num_channels, in_size, slice_ksp, scale_out=1, scale_t
     
     return scale, net_input
 
+def lsreconstruction(measurement,mode='both'):
+    ''' given measurement of dimn (1, num_slices, x, y, 2), 
+        take ifft and return either the
+        real components, imag components, or combined magnitude '''
+    
+    fimg = transform.ifft2(measurement)
+    #print("real/img parts: ", torch.norm(fimg[:,:,:,:,0]), torch.norm(fimg[:,:,:,:,1]))
+    
+    if mode == 'both':
+        return torch.sqrt(fimg[:,:,:,:,0]**2 + fimg[:,:,:,:,1]**2)
+    elif mode == 'real':
+        return torch.tensor(fimg[:,:,:,:,0]) #torch.sqrt(fimg[:,:,:,:,0]**2)
+    elif mode == 'imag':
+        return torch.sqrt(fimg[:,:,:,:,1]**2)
+
+def channels2imgs(out): #TODO: replace this function via utils.transform.py
+    sh = out.shape
+    chs = int(sh[0]/2)
+    imgs = np.zeros( (chs,sh[1],sh[2]) )
+    for i in range(chs):
+        imgs[i] = np.sqrt( out[2*i]**2 + out[2*i+1]**2 )
+    return imgs
