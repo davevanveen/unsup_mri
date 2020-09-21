@@ -13,8 +13,8 @@ def load_h5(file_id, slice_idx_from_last=None):
 
     filename = '/bmrNAS/people/dvv/multicoil_test_v2/file{}_v2.h5'.format(file_id)
     f = h5py.File(filename, 'r')
-    print('file_id {} w ksp shape (num_slices, num_coils, x, y): {}'.format( \
-                                                file_id, f['kspace'].shape))
+    #print('file_id {} w ksp shape (num_slices, num_coils, x, y): {}'.format( \
+    #                                            file_id, f['kspace'].shape))
 
     if f['kspace'].shape[3] == 320:
         print('2D slice is length 320 -- may prevent masks from loading properly')
