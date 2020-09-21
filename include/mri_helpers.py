@@ -83,7 +83,7 @@ def get_scale_factor(net, num_channels, in_size, slice_ksp, scale_out=1, scale_t
 
         return scaling factor, i.e. difference in magnitudes scaling b/w:
         original image and random image of network output = net(net_input) '''
-        
+    #TODO: make this two separate functions - get_scale_factor and get_net_input    
 
     # create net_input, e.g. tensor with values sampled uniformly on [0,1]
     shape = [1,num_channels, in_size[0], in_size[1]]
