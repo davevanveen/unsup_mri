@@ -26,10 +26,21 @@ def normalize_img(img_out, img_gt):
     
     return img_gt
 
+def compare_dyn_ranges(im1, im2):
+    ''' check that images being compared have similar dynamic ranges '''
+
+    range_ratio = (im1.max() - im1.min()) / (im2.max() - im2.min())
+
+    if range_ratio < 0.98 or range_ratio > 1.02:
+        raise ValueError('images have different dynamic ranges')
+    else:
+        return
+
 def calc_metrics(img_out, img_gt):
     ''' compute vif, ssim, and psnr of img_out using im_gt as ground-truth reference '''
    
-    img_gt = normalize_img(img_out, img_gt)
+    #img_gt = normalize_img(img_out, img_gt) # if images have different dynamic ranges
+    compare_dyn_ranges(img_out, img_gt)
 
     vif_ = vifp_mscale(img_out, img_gt, sigma_nsq=img_out.mean())
     ssim_ = ssim(np.array([img_out]), np.array([img_gt]))
