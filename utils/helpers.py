@@ -8,7 +8,7 @@ import h5py
 from utils.transform import np_to_tt
 from include.subsample import MaskFunc
 
-def load_h5(file_id, slice_idx_from_last=None):
+def load_h5(file_id):
     ''' given file_id, return the h5 file and central slice '''
 
     filename = '/bmrNAS/people/dvv/multicoil_val/file{}.h5'.format(file_id)
@@ -16,13 +16,7 @@ def load_h5(file_id, slice_idx_from_last=None):
     #print('file_id {} w ksp shape (num_slices, num_coils, x, y): {}'.format( \
     #                                            file_id, f['kspace'].shape))
 
-    #if f['kspace'].shape[3] == 320:
-    #    print('2D slice is length 320 -- may prevent masks from loading properly')
-
-    if not slice_idx_from_last: # isolate central k-space slice
-        slice_idx = f['kspace'].shape[0] // 2
-    else: # isolate slice at _ distance from last
-        slice_idx = f['kspace'].shape[0] - slice_idx_from_last
+    slice_idx = f['kspace'].shape[0] // 2
     slice_ksp = f['kspace'][slice_idx]
 
     return f, slice_ksp
@@ -53,17 +47,13 @@ def get_masks(file_h5, slice_ksp, center_fractions=[0.07], accelerations=[4]):
         #raise NotImplementedError('Implement method for generating a new mask here')
 
     ## zero mask in outer regions e.g. mask and data have last dimn 368, but actual data is 320
-    ## TODO: either delete this or make sure this works for 320x320 slices
+    ## TODO: either delete or make sure this works for 320x320 slices
     #idxs_zero = (mask1d.shape[-1] - 320) // 2 # e.g. zero first/last (368-320)/2=24 indices
     #mask1d[:idxs_zero], mask1d[-idxs_zero:] = 0, 0
 
     # create 2d mask. zero pad if dimensions don't line up
     mask2d = np.repeat(mask1d[None,:], slice_ksp.shape[1], axis=0)#.astype(int)
     mask2d = np.pad(mask2d, ((0,),((slice_ksp.shape[-1]-mask2d.shape[-1])//2,)), mode='constant')
-
-    # convert shape e.g. (368,) --> (1, 1, 368, 1)
-    #mask = np_to_tt(np.array([[mask2d[0][np.newaxis].T]])).type(torch.FloatTensor)
-    #print('under-sampling factor:', round(len(mask1d) / sum(mask1d), 2))
     
     return mask, mask2d, mask1d
 

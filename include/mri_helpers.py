@@ -37,8 +37,17 @@ def get_masked_measurements(slice_ksp, mask):
     
     return ksp_masked, img_masked
 
+def data_consistency_iter(ksp, ksp_orig, mask1d):
+    ''' apply dc step (ksp only) within gradient step
+        i.e. replace vals of ksp w ksp_orig per mask1d 
+        ksp, ksp_orig are torch tensors shape [1,15,x,y,2] '''
+    
+    ksp[:,:,:,mask1d==1,:] = ksp_orig[:,:,:,mask1d==1,:]
+    return ksp
+
+
 def data_consistency(img_out, slice_ksp, mask1d):
-    ''' perform data-consistency step 
+    ''' perform data-consistency step given image 
         parameters:
                 img_out: network output image
                 slice_ksp: original k-space measurements 
@@ -49,8 +58,8 @@ def data_consistency(img_out, slice_ksp, mask1d):
     img_out = reshape_complex_channels_to_sep_dimn(img_out)
 
     # now get F*G(\hat{C}), i.e. estimated recon in k-space
-    ksp_est = fft_2d(img_out) # ([15, 640, 368, 2])
-    ksp_orig = np_to_tt(split_complex_vals(slice_ksp)) # ([15, 640, 368, 2]); slice_ksp (15,640,368) complex
+    ksp_est = fft_2d(img_out) # ([15,x,y,2])
+    ksp_orig = np_to_tt(split_complex_vals(slice_ksp)) # [15,x,y,2]; slice_ksp (15,x,y) complex
 
     # replace estimated coeffs in k-space by original coeffs if it has been sampled
     mask1d = torch.from_numpy(np.array(mask1d, dtype=np.uint8)) # shape: torch.Size([368]) w 41 non-zero elements
@@ -78,7 +87,7 @@ def forwardm(img, mask):
         Fimg[0,i,:,:,1] *= mask
     return Fimg
 
-def get_scale_factor(net, num_channels, in_size, slice_ksp, scale_out=1, scale_type='norm'):#, dtype=torch.cuda.FloatTensor): 
+def get_scale_factor(net, num_channels, in_size, slice_ksp, scale_out=1, scale_type='norm'):
     ''' return net_input, e.g. tensor w values sampled uniformly on [0,1]
 
         return scaling factor, i.e. difference in magnitudes scaling b/w:

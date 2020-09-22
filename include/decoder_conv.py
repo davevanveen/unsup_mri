@@ -3,14 +3,18 @@ import torch.nn as nn
 import numpy as np
 from copy import copy
 
+from .mri_helpers import get_scale_factor
+
+dtype=torch.cuda.FloatTensor #TODO: fix this
+
 def add_module(self, module):
     self.add_module(str(len(self) + 1), module)
 
 torch.nn.Module.add = add_module
 
-class conv_model(nn.Module):
+class Conv_Model(nn.Module):
     def __init__(self, num_layers, strides, num_channels, out_depth, hidden_size, upsample_mode, act_fun, bn_affine=True, bias=False, need_last=False, kernel_size=3):
-        super(conv_model, self).__init__()
+        super(Conv_Model, self).__init__()
         
         self.num_layers = num_layers
         self.hidden_size = hidden_size
@@ -75,7 +79,6 @@ def convdecoder(
         num_layers, #default 6
         strides, #default [1]*6,
         num_channels, #default 64
-
         kernel_size=3,
         upsample_mode='nearest', #default 'bilinear', 
         act_fun=nn.ReLU(), # nn.LeakyReLU(0.2, inplace=True) 
@@ -90,7 +93,7 @@ def convdecoder(
         e.g. input [8,4] and output [640,368] would yield hidden_size of:
             [(15, 8), (28, 15), (53, 28), (98, 53), (183, 102), (343, 193), (640, 368)]
         provide option for nonlinear scaling (default False) and different activation functions
-        call conv_model(...), defined above 
+        call Conv_Model(...), defined above 
 
         Note: I removed unnecessary args, e.g. skips, intermeds, pad, etc. 
               decoder_conv_old.py for original code'''
@@ -108,7 +111,7 @@ def convdecoder(
                         int(np.ceil(scale_y**n * in_size[1]))) for n in range(1, (num_layers-1))] + [out_size]
     #print(hidden_size)
     
-    model = conv_model(num_layers, strides, num_channels, out_depth, hidden_size,
+    model = Conv_Model(num_layers, strides, num_channels, out_depth, hidden_size,
                          upsample_mode=upsample_mode, 
                          act_fun=act_fun,
                          bn_affine=bn_affine,
@@ -117,3 +120,32 @@ def convdecoder(
                          kernel_size=kernel_size)#,
                          #dtype=dtype)
     return model
+
+def init_convdecoder(slice_ksp, mask, \
+                     in_size=[8,4], num_layers=8, num_channels=160, kernel_size=3):
+    ''' wrapper function for initializing convdecoder based on input slice_ksp
+        
+        parameters: 
+                slice_ksp: original, unmasked k-space measurements
+                mask: mask used to downsample original k-space
+        return:
+                net: initialized convdecoder
+                net_input: random, scaled input seed 
+                slice_ksp: scaled version of input '''
+
+    out_size = slice_ksp.shape[1:] # shape of (x,y) image slice, e.g. (640, 368)
+    out_depth = slice_ksp.shape[0]*2 # 2*n_c, i.e. 2*15=30 if multi-coil
+    strides = [1]*(num_layers-1)
+
+    net = convdecoder(in_size, out_size, out_depth, num_layers, \
+                      strides, num_channels).type(dtype)
+#     print('# parameters of ConvDecoder:',num_params(net))
+    
+    # generate network input + fix scaling
+    scale_factor, net_input = get_scale_factor(net,
+                                       num_channels,
+                                       in_size,
+                                       slice_ksp)
+    slice_ksp = slice_ksp * scale_factor
+    
+    return net, net_input, slice_ksp

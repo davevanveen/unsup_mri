@@ -100,8 +100,14 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
                 # TODO: compare forwardm to utils.transform.apply_mask()
                 # add forwardm().half() to do with half precision
             out_ksp_masked = forwardm(out, mask2d)
+
+            if DC_STEP:
+                out_ksp_dc = data_consistency_iter(ksp=out_ksp_masked, \
+                                                   ksp_orig=ksp_orig, mask1d=mask1d)
+                loss_ksp = mse(out_ksp_dc, ksp_masked)
+            else:
+                loss_ksp = mse(out_ksp_masked, ksp_masked) # loss w.r.t. masked k-space
             
-            loss_ksp = mse(out_ksp_masked, ksp_masked) # loss w.r.t. masked k-space
             # TODO: why do we backprop on loss_ksp and not loss_img? think about this
             loss_ksp.backward(retain_graph=False)
             
