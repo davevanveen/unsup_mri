@@ -57,7 +57,7 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
             DC_STEP: (boolean) do data consistency step during network fit
             num_iter: number of iterations to optimize network
             lr: learning rate
-            img_ls: least-squares image, i.e. ifft(ksp_full)
+            img_ls: least-squares image of unmasked k-space, i.e. ifft(ksp_full)
                     only needed to compute ssim, psnr over each iteration
         returns:
             net: the best network, whose output would be in image space
@@ -102,13 +102,13 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
             out_ksp_masked = forwardm(out, mask2d)
             
             loss_ksp = mse(out_ksp_masked, ksp_masked) # loss w.r.t. masked k-space
-            # TODO: understand why we backprop on loss_ksp and not loss_img
+            # TODO: why do we backprop on loss_ksp and not loss_img? think about this
             loss_ksp.backward(retain_graph=False)
             
             mse_wrt_ksp[i] = loss_ksp.data.cpu().numpy()
 
             # loss in image space
-            loss_img = mse(out, img_masked.type(dtype) )
+            loss_img = mse(out, img_masked.type(dtype))
             mse_wrt_img[i] = loss_img.data.cpu().numpy()
 
             return loss_ksp   
