@@ -43,7 +43,7 @@ class MSLELoss(torch.nn.Module):
         return loss
 
 def fit(ksp_masked, img_masked, net, net_input, mask2d, 
-        mask1d=None, ksp_orig=None, DC_STEP=False,
+        mask1d=None, ksp_orig=None, DC_STEP=False, alpha=0.5,
         num_iter=5000, lr=0.01, img_ls=None, dtype=torch.cuda.FloatTensor):
     ''' fit a network to masked k-space measurement
         args:
@@ -55,6 +55,8 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
             mask1d: 1D mask for data consistency step. boolean torch tensor size [y]
             ksp_orig: orig ksp meas for data consistency step. torch tensor [15,x,y,2]
             DC_STEP: (boolean) do data consistency step during network fit
+            alpha: control weight to which we enforce data consistency,
+                   e.g. ksp_out = alpha*ksp_dc + (1-alpha)*ksp_in, 0 <= alpha < 1
             num_iter: number of iterations to optimize network
             lr: learning rate
             img_ls: least-squares image of unmasked k-space, i.e. ifft(ksp_full)
@@ -80,6 +82,8 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
     # initialize variables
     if img_ls is not None or net_input is None: 
         raise NotImplementedError('incorporate original code here')
+    if alpha < 0 or alpha >= 1:
+        raise ValueError('alpha must be non-negative and strictly less than 1')
     net_input = net_input.type(dtype)
     best_net = copy.deepcopy(net)
     best_mse = 10000.0
@@ -102,8 +106,9 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
             out_ksp_masked = forwardm(out, mask2d)
 
             if DC_STEP:
-                out_ksp_dc = data_consistency_iter(ksp=out_ksp_masked, \
-                                                   ksp_orig=ksp_orig, mask1d=mask1d)
+                out_ksp_dc = data_consistency_iter(ksp=out_ksp_masked, 
+                                                   ksp_orig=ksp_orig, mask1d=mask1d, 
+                                                   alpha=alpha)
                 loss_ksp = mse(out_ksp_dc, ksp_masked)
             else:
                 loss_ksp = mse(out_ksp_masked, ksp_masked) # loss w.r.t. masked k-space

@@ -4,6 +4,7 @@ import os, sys
 import numpy as np
 from PIL import Image
 import PIL
+import copy
 from torch.autograd import Variable
 import matplotlib.pyplot as plt
 
@@ -37,20 +38,17 @@ def get_masked_measurements(slice_ksp, mask):
     
     return ksp_masked, img_masked
 
-def data_consistency_iter(ksp, ksp_orig, mask1d):
+def data_consistency_iter(ksp, ksp_orig, mask1d, alpha=0.5):
     ''' apply dc step (ksp only) within gradient step
         i.e. replace vals of ksp w ksp_orig per mask1d 
         ksp, ksp_orig are torch tensors shape [1,15,x,y,2] '''
-    #ksp[:,:,:,mask1d==1,:] = ksp_orig[:,:,:,mask1d==1,:]
-    #return ksp
 
-    # basic interpolation test -- this works!
-    #zz = Variable(torch.zeros(ksp.shape), requires_grad=True).type(dtype)
-    #return 0.5*ksp + 0.5*zz
-
-    # basic index select test - this fails :(
-    mask1d_idx = Variable(torch.LongTensor([1]*len(mask1d))).cuda()
-    return torch.index_select(ksp, 3, mask1d_idx)
+    # interpolate b/w ksp and ksp_orig according to mask1d
+    ksp_dc = Variable(ksp.clone()).type(dtype) 
+    #ksp_dc[:,:,:,mask1d==1,:] = ksp_orig[:,:,:,mask1d==1,:] 
+    ksp_dc[:,:,:,:,:] = ksp_orig[:,:,:,:,:] 
+    
+    return alpha*ksp_dc + (1-alpha)*ksp # as alpha increase, more weight on dc
 
 def data_consistency(img_out, slice_ksp, mask1d):
     ''' perform data-consistency step given image 

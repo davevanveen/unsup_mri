@@ -146,6 +146,7 @@ def init_convdecoder(slice_ksp, mask, \
                                        num_channels,
                                        in_size,
                                        slice_ksp)
+    print('scale factor {}'.format(scale_factor))
     slice_ksp = slice_ksp * scale_factor
     
     return net, net_input, slice_ksp
