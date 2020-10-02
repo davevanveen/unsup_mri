@@ -101,6 +101,7 @@ def get_scale_factor(net, num_channels, in_size, slice_ksp, scale_out=1, scale_t
     # create net_input, e.g. tensor with values sampled uniformly on [0,1]
     shape = [1,num_channels, in_size[0], in_size[1]]
     net_input = Variable(torch.zeros(shape)).type(dtype)
+    torch.manual_seed(0)
     net_input.data.uniform_()
 
     # generate random image

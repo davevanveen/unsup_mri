@@ -42,7 +42,7 @@ def get_masks(file_h5, slice_ksp, center_fractions=[0.07], accelerations=[4]):
                              accelerations=accelerations)
         shape = np.array(np_to_tt(slice_ksp).shape)
         shape[:-3] = 1
-        mask = mask_func(shape, seed=None)
+        mask = mask_func(shape, seed=0)
         mask1d = mask.cpu().numpy()[0,0,:,0]
         #raise NotImplementedError('Implement method for generating a new mask here')
 
