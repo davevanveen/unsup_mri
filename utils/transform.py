@@ -17,8 +17,8 @@ def recon_ksp_to_img(ksp, dim=320):
     if type(ksp).__module__ == np.__name__:
         ksp = np_to_tt(ksp)
 
-    arr = ifft_2d(ksp).cpu().numpy()
-    arr = reshape_complex_channels_to_be_adj(arr)
+    arr = ifft_2d(ksp).cpu().numpy() # (15,x,y,2) --> (15,x,y,2)
+    arr = reshape_complex_channels_to_be_adj(arr) # (15,x,y,2) --> (30,x,y)
     arr = combine_complex_channels(arr) # e.g. shape (30,x,y) --> (15,x,y)
     arr = root_sum_of_squares(arr) # e.g. (15,x,y) --> (x,y)
     arr = crop_center(arr, dim, dim) # e.g. (x,y) --> (dim,dim)

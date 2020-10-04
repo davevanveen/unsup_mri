@@ -4,6 +4,7 @@ import os, sys
 import numpy as np
 from PIL import Image
 import PIL
+import copy
 from torch.autograd import Variable
 import matplotlib.pyplot as plt
 
@@ -37,8 +38,20 @@ def get_masked_measurements(slice_ksp, mask):
     
     return ksp_masked, img_masked
 
+def data_consistency_iter(ksp, ksp_orig, mask1d, alpha=0.5):
+    ''' apply dc step (ksp only) within gradient step
+        i.e. replace vals of ksp w ksp_orig per mask1d 
+        ksp, ksp_orig are torch tensors shape [1,15,x,y,2] '''
+
+    # interpolate b/w ksp and ksp_orig according to mask1d
+    ksp_dc = Variable(ksp.clone()).type(dtype) 
+    #ksp_dc[:,:,:,mask1d==1,:] = ksp_orig[:,:,:,mask1d==1,:] 
+    ksp_dc[:,:,:,:,:] = ksp_orig[:,:,:,:,:] 
+    
+    return alpha*ksp_dc + (1-alpha)*ksp # as alpha increase, more weight on dc
+
 def data_consistency(img_out, slice_ksp, mask1d):
-    ''' perform data-consistency step 
+    ''' perform data-consistency step given image 
         parameters:
                 img_out: network output image
                 slice_ksp: original k-space measurements 
@@ -49,8 +62,8 @@ def data_consistency(img_out, slice_ksp, mask1d):
     img_out = reshape_complex_channels_to_sep_dimn(img_out)
 
     # now get F*G(\hat{C}), i.e. estimated recon in k-space
-    ksp_est = fft_2d(img_out) # ([15, 640, 368, 2])
-    ksp_orig = np_to_tt(split_complex_vals(slice_ksp)) # ([15, 640, 368, 2]); slice_ksp (15,640,368) complex
+    ksp_est = fft_2d(img_out) # ([15,x,y,2])
+    ksp_orig = np_to_tt(split_complex_vals(slice_ksp)) # [15,x,y,2]; slice_ksp (15,x,y) complex
 
     # replace estimated coeffs in k-space by original coeffs if it has been sampled
     mask1d = torch.from_numpy(np.array(mask1d, dtype=np.uint8)) # shape: torch.Size([368]) w 41 non-zero elements
@@ -78,7 +91,7 @@ def forwardm(img, mask):
         Fimg[0,i,:,:,1] *= mask
     return Fimg
 
-def get_scale_factor(net, num_channels, in_size, slice_ksp, scale_out=1, scale_type='norm'):#, dtype=torch.cuda.FloatTensor): 
+def get_scale_factor(net, num_channels, in_size, slice_ksp, scale_out=1, scale_type='norm'):
     ''' return net_input, e.g. tensor w values sampled uniformly on [0,1]
 
         return scaling factor, i.e. difference in magnitudes scaling b/w:
@@ -88,6 +101,7 @@ def get_scale_factor(net, num_channels, in_size, slice_ksp, scale_out=1, scale_t
     # create net_input, e.g. tensor with values sampled uniformly on [0,1]
     shape = [1,num_channels, in_size[0], in_size[1]]
     net_input = Variable(torch.zeros(shape)).type(dtype)
+    torch.manual_seed(0)
     net_input.data.uniform_()
 
     # generate random image
