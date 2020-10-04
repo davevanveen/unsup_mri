@@ -11,11 +11,6 @@ from .helpers import *
 from .mri_helpers import * #forwardm, 
 from .transforms import *
 
-#dtype = torch.cuda.FloatTensor
-#dtype = torch.FloatTensor
-
-# original code had exp_lr_scheduler() to decay lr by 0.1 every lr_decay_epoch epochs
-
 def sqnorm(a):
     return np.sum( a*a )
 
