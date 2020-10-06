@@ -28,6 +28,12 @@ def get_weights(net):
             weights += [m.weight.data.cpu().numpy()]
     return weights
 
+def w_mse(x, y, c_wmse):
+    ''' weighted mse by values of k-space '''
+    ones = torch.ones(1).expand_as(x).type(dtype)
+    mask = torch.where(x>1, c_wmse*x, ones)
+    return torch.mean(mask * (x-y)**2)
+
 class MSLELoss(torch.nn.Module):
     def __init__(self):
         super(MSLELoss,self).__init__()
@@ -39,7 +45,8 @@ class MSLELoss(torch.nn.Module):
 
 def fit(ksp_masked, img_masked, net, net_input, mask2d, 
         mask1d=None, ksp_orig=None, DC_STEP=False, alpha=0.5,
-        num_iter=5000, lr=0.01, img_ls=None, dtype=torch.cuda.FloatTensor):
+        num_iter=5000, lr=0.01, img_ls=None, dtype=torch.cuda.FloatTensor, 
+        c_wmse=1):
     ''' fit a network to masked k-space measurement
         args:
             ksp_masked: masked k-space of a single slice. torch variable [1,C,H,W]
@@ -106,7 +113,7 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
                                                    alpha=alpha)
                 loss_ksp = mse(out_ksp_dc, ksp_masked)
             else:
-                loss_ksp = mse(out_ksp_masked, ksp_masked) # loss w.r.t. masked k-space
+                loss_ksp = w_mse(out_ksp_masked, ksp_masked, c_wmse) # loss wrt masked k-space
             
             # TODO: why do we backprop on loss_ksp and not loss_img? think about this
             loss_ksp.backward(retain_graph=False)
