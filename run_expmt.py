@@ -23,14 +23,11 @@ else:
 
 def run_expmt():
     
-    img_dc_list, img_est_list, img_gt_list = [], [], []
-    mse_wrt_ksp_list, mse_wrt_img_list = [], []
-    ssim_list, psnr_list = [], []
-
-    file_id_list = ['1000273', '1000325', '1000464', '1000007', '1000537', '1000818']#, \
-    #                 '1001140', '1001219', '1001338', '1001598', '1001533', '1001798']
-    NUM_ITER_LIST = [100, 1000, 10000]
-    ALPHA_LIST = [0, 0.25, 0.5]#, 0.25, 0.5, 0.75]
+    #file_id_list = ['1000273', '1000325', '1000464', '1000007', '1000537', '1000818', \
+    #                '1001140', '1001219', '1001338', '1001598', '1001533', '1001798']
+    file_id_list = ['1001533', '1001798'] # two samples w biggest delta b/w ALPHA=0, ALPHA=.25
+    NUM_ITER_LIST = [10000]
+    ALPHA_LIST = [0.125, 0.375]#, 0.25, 0.5, 0.75]
     DC_STEP = True
 
     for idx, file_id in enumerate(file_id_list):
@@ -46,11 +43,9 @@ def run_expmt():
 
                 # initialize net, net input seed, and scale slice_ksp accordingly
                 net, net_input, slice_ksp = init_convdecoder(slice_ksp, mask)
-                img_gt = recon_ksp_to_img(slice_ksp) # must do this after slice_ksp is scaled
-                img_gt_list.append(img_gt) # could do this once per loop
+                #img_gt = recon_ksp_to_img(slice_ksp) # must do this after slice_ksp is scaled
 
                 if expmt_already_generated(file_id, NUM_ITER, DC_STEP, ALPHA):
-                    img_dc_list.append(load_output(file_id, NUM_ITER, DC_STEP, ALPHA))
                     continue
 
                 # for dc step - must do this after scaling slice_ksp

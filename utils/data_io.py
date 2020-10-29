@@ -86,4 +86,4 @@ def load_output(file_id, NUM_ITER, DC_STEP, ALPHA):
     path_loss_ksp, path_loss_img = get_path_loss_curve(\
                             file_id, NUM_ITER, DC_STEP, ALPHA)
 
-    return np.load(path_out), np.load(path_loss_ksp), np.load(path_loss_img)
+    return np.load(path_out), 0, 0 #np.load(path_loss_ksp), np.load(path_loss_img)

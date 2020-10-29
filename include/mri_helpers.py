@@ -45,8 +45,7 @@ def data_consistency_iter(ksp, ksp_orig, mask1d, alpha=0.5):
 
     # interpolate b/w ksp and ksp_orig according to mask1d
     ksp_dc = Variable(ksp.clone()).type(dtype) 
-    #ksp_dc[:,:,:,mask1d==1,:] = ksp_orig[:,:,:,mask1d==1,:] 
-    ksp_dc[:,:,:,:,:] = ksp_orig[:,:,:,:,:] 
+    ksp_dc[:,:,:,mask1d==1,:] = ksp_orig[:,:,:,mask1d==1,:] 
     
     return alpha*ksp_dc + (1-alpha)*ksp # as alpha increase, more weight on dc
 

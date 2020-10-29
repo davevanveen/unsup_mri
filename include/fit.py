@@ -46,7 +46,7 @@ class MSLELoss(torch.nn.Module):
 def fit(ksp_masked, img_masked, net, net_input, mask2d, 
         mask1d=None, ksp_orig=None, DC_STEP=False, alpha=0.5,
         num_iter=5000, lr=0.01, img_ls=None, dtype=torch.cuda.FloatTensor, 
-        c_wmse=1):
+        c_wmse=None):
     ''' fit a network to masked k-space measurement
         args:
             ksp_masked: masked k-space of a single slice. torch variable [1,C,H,W]
@@ -105,15 +105,24 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
             # forwardm(): converts img to ksp, apply mask, and return the masked ksp
                 # TODO: compare forwardm to utils.transform.apply_mask()
                 # add forwardm().half() to do with half precision
+            if i == 0:
+                print(out.shape, mask2d.shape)
             out_ksp_masked = forwardm(out, mask2d)
 
             if DC_STEP:
-                out_ksp_dc = data_consistency_iter(ksp=out_ksp_masked, 
-                                                   ksp_orig=ksp_orig, mask1d=mask1d, 
-                                                   alpha=alpha)
+                # enforces data consistency w indexing
+                #out_ksp_dc = data_consistency_iter(ksp=out_ksp_masked, 
+                #                                   ksp_orig=ksp_orig, mask1d=mask1d, 
+                #                                   alpha=alpha)
+                
+                # TODO: build alternative way of enforcing data consistency with a regularizer
+                # but this is already what we are doing, at least for final layer
                 loss_ksp = mse(out_ksp_dc, ksp_masked)
             else:
-                loss_ksp = w_mse(out_ksp_masked, ksp_masked, c_wmse) # loss wrt masked k-space
+                if c_wmse:
+                    loss_ksp = w_mse(out_ksp_masked, ksp_masked, c_wmse) # loss wrt masked k-space
+                else:
+                    loss_ksp = mse(out_ksp_masked, ksp_masked)
             
             # TODO: why do we backprop on loss_ksp and not loss_img? think about this
             loss_ksp.backward(retain_graph=False)
