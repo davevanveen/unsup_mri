@@ -105,8 +105,6 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
             # forwardm(): converts img to ksp, apply mask, and return the masked ksp
                 # TODO: compare forwardm to utils.transform.apply_mask()
                 # add forwardm().half() to do with half precision
-            if i == 0:
-                print(out.shape, mask2d.shape)
             out_ksp_masked = forwardm(out, mask2d)
 
             if DC_STEP:

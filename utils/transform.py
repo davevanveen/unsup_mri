@@ -44,6 +44,7 @@ def np_to_var(arr):
     return Variable(np_to_tt(arr)[None, :])
 
 def split_complex_vals(ksp):
+    # TODO: implement this in torch -- much faster
     ''' given complex npy array, split real/complex vals into two channels 
         e.g. shape (15,x,y) --> (15,x,y,2) '''
     return np.transpose(np.array([np.real(ksp),np.imag(ksp)]), (1, 2, 3, 0))

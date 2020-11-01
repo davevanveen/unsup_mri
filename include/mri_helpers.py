@@ -85,6 +85,7 @@ def forwardm(img, mask):
         fimg[0,i,:,:,0] = img[0,2*i,:,:]
         fimg[0,i,:,:,1] = img[0,2*i+1,:,:]
     Fimg = transform.fft2(fimg) # dim: (1,num_slices,x,y,2)
+    # TODO: decide whether to split real/complex
     for i in range(ns):
         Fimg[0,i,:,:,0] *= mask
         Fimg[0,i,:,:,1] *= mask
