@@ -91,31 +91,26 @@ def root_sum_of_squares(arr):
     return np.sqrt(np.sum(np.square(arr), axis=0))
 
 def ifft_2d(arr):
-    ''' apply centered 2D inverse fast fourier transform
-        args:
-            arr (torch.Tensor): complex valued input arr containing at least 3 dimns: dimns
-            -3 & -2 are spatial dimns and dimn -1 has size 2. all other dimns are
-            assumed to be batch dimns.
-        returns: ifft of input (torch.Tensor)
-    '''
-    assert arr.size(-1) == 2
-    arr = ifftshift(arr, dim=(-3, -2))
-    arr = torch.ifft(arr, 2, normalized=True)
-    arr = fftshift(arr, dim=(-3, -2))
+    ''' apply centered 2d ifft, where (-2, -1) are spatial dimensions of arr '''
+    
+    dims = (-2,-1)
+
+    arr = ifftshift(arr, dim=dims)
+    arr = torch.fft.ifftn(arr, dim=dims)
+    arr = fftshift(arr, dim=dims)
+
     return arr
 
+
 def fft_2d(arr):
-    ''' apply centered 2D fast fourier transform
-        args:
-            arr (torch.Tensor): complex valued input arr containing at least 3 dimns: dimns
-            -3 & -2 are spatial dimns and dimn -1 has size 2. all other dimns are
-            assumed to be batch dimns.
-        returns: fft of input (torch.Tensor)
-    '''
-    assert arr.size(-1) == 2
-    arr = ifftshift(arr, dim=(-3, -2))
-    arr = torch.fft(arr, 2, normalized=True)
-    arr = fftshift(arr, dim=(-3, -2))
+    ''' apply centered 2d fft, where (-2, -1) are spatial dimensions of arr '''
+
+    dims=(-2,-1)
+
+    arr = ifftshift(arr, dim=dims)
+    arr = torch.fft.fftn(arr, dim=dims)
+    arr = fftshift(arr, dim=dims)
+
     return arr
 
 def apply_mask(arr, mask=None, mask_func=None, seed=None):

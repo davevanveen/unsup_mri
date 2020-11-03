@@ -75,21 +75,31 @@ def data_consistency(img_out, slice_ksp, mask1d):
     return img_dc, img_est
 
 def forwardm(img, mask):
-    # img has dimension (2*num_slices, x,y)
-    # output has dimension (1, num_slices, x, y, 2)
+    ''' convert img --> ksp, apply mask
+        img + output each have dimension (2*num_slices, x,y) '''
+
     mask = np_to_var(mask)[0].type(dtype)
-    s = img.shape
-    ns = int(s[1]/2) # number of slices
-    fimg = Variable( torch.zeros( (s[0],ns,s[2],s[3],2 ) ) ).type(dtype)
-    for i in range(ns):
-        fimg[0,i,:,:,0] = img[0,2*i,:,:]
-        fimg[0,i,:,:,1] = img[0,2*i+1,:,:]
-    Fimg = transform.fft2(fimg) # dim: (1,num_slices,x,y,2)
-    # TODO: decide whether to split real/complex
-    for i in range(ns):
-        Fimg[0,i,:,:,0] *= mask
-        Fimg[0,i,:,:,1] *= mask
-    return Fimg
+    
+    ksp = transform.fft2(img) # dim: (1,num_slices,x,y,2)
+    
+    return ksp*mask
+
+## TODO: delete this old version of forwardm()
+#def forwardm(img, mask):
+#    # img has dimension (2*num_slices, x,y)
+#    # output has dimension (1, num_slices, x, y, 2)
+#    mask = np_to_var(mask)[0].type(dtype)
+#    s = img.shape
+#    ns = int(s[1]/2) # number of slices
+#    fimg = Variable( torch.zeros( (s[0],ns,s[2],s[3],2 ) ) ).type(dtype)
+#    for i in range(ns):
+#        fimg[0,i,:,:,0] = img[0,2*i,:,:]
+#        fimg[0,i,:,:,1] = img[0,2*i+1,:,:]
+#    Fimg = transform.fft2(fimg) # dim: (1,num_slices,x,y,2)
+#    for i in range(ns):
+#        Fimg[0,i,:,:,0] *= mask
+#        Fimg[0,i,:,:,1] *= mask
+#    return Fimg
 
 def get_scale_factor(net, num_channels, in_size, slice_ksp, scale_out=1, scale_type='norm'):
     ''' return net_input, e.g. tensor w values sampled uniformly on [0,1]
@@ -114,7 +124,7 @@ def get_scale_factor(net, num_channels, in_size, slice_ksp, scale_out=1, scale_t
 
     ### get norm of least-squares reconstruction
     ksp_tt = transform.to_tensor(slice_ksp)
-    orig_tt = transform.ifft2(ksp_tt)   # apply ifft get the complex image
+    orig_tt = ifft_2d(ksp_tt)   # apply ifft get the complex image
     orig_imgs_tt = transform.complex_abs(orig_tt)   # compute absolute value to get a real image
     orig_img_tt = transform.root_sum_of_squares(orig_imgs_tt, dim=0)
     orig_img_np = orig_img_tt.cpu().numpy()
@@ -131,8 +141,9 @@ def lsreconstruction(measurement,mode='both'):
         take ifft and return either the
         real components, imag components, or combined magnitude '''
     
-    fimg = transform.ifft2(measurement)
-    #print("real/img parts: ", torch.norm(fimg[:,:,:,:,0]), torch.norm(fimg[:,:,:,:,1]))
+    fimg = ifft_2d(measurement)
+    raise TypeError('new ifft_2d() outputs (-2,-1) as spatial dimensions - \
+                    might cause issue with below code')
     
     if mode == 'both':
         return torch.sqrt(fimg[:,:,:,:,0]**2 + fimg[:,:,:,:,1]**2)
