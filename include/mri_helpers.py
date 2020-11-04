@@ -58,10 +58,10 @@ def data_consistency(img_out, slice_ksp, mask1d):
                 img_dc: data-consistent output image
                 img_est: output image without data consistency '''
     
-    img_out = reshape_complex_channels_to_sep_dimn(img_out)
+    #img_out = reshape_complex_channels_to_sep_dimn(img_out)
 
     # now get F*G(\hat{C}), i.e. estimated recon in k-space
-    ksp_est = fft_2d(img_out) # ([15,x,y,2])
+    ksp_est = fft_2d(img_out) # now [30,x,y], prev  ([15,x,y,2]) 
     ksp_orig = np_to_tt(split_complex_vals(slice_ksp)) # [15,x,y,2]; slice_ksp (15,x,y) complex
 
     # replace estimated coeffs in k-space by original coeffs if it has been sampled
@@ -80,9 +80,14 @@ def forwardm(img, mask):
 
     mask = np_to_var(mask)[0].type(dtype)
     
-    ksp = transform.fft2(img) # dim: (1,num_slices,x,y,2)
+    ksp = fft_2d(img) # dim: (1,2*num_slices,x,y)
+    ksp_masked = ksp*mask
+
+    # still want dims (1,num_slices,x,y) -- TODO: fix this
+    # function requires 3d shape, but want output as 4d
+    ksp_masked = reshape_complex_channels_to_sep_dimn(ksp_masked[0])[None, :]
     
-    return ksp*mask
+    return ksp_masked
 
 ## TODO: delete this old version of forwardm()
 #def forwardm(img, mask):
