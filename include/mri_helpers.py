@@ -77,6 +77,7 @@ def data_consistency(img_out, slice_ksp, mask1d):
     
     return img_dc, img_est
 
+# TODO: delete deprecated functions
 def forwardm(img, mask):
     ''' convert img --> ksp, apply mask
         img + output each have dimension (2*num_slices, x,y) '''
@@ -87,26 +88,26 @@ def forwardm(img, mask):
 
     return ksp_masked
 
-def lsreconstruction(measurement,mode='both'):
-    ''' given measurement of dimn (1, num_slices, x, y, 2), 
-        take ifft and return either the
-        real components, imag components, or combined magnitude '''
-    
-    fimg = ifft_2d(measurement)
-    raise TypeError('new ifft_2d() outputs (-2,-1) as spatial dimensions - \
-                    might cause issue with below code')
-    
-    if mode == 'both':
-        return torch.sqrt(fimg[:,:,:,:,0]**2 + fimg[:,:,:,:,1]**2)
-    elif mode == 'real':
-        return torch.tensor(fimg[:,:,:,:,0]) #torch.sqrt(fimg[:,:,:,:,0]**2)
-    elif mode == 'imag':
-        return torch.sqrt(fimg[:,:,:,:,1]**2)
+#def lsreconstruction(measurement,mode='both'):
+#    ''' given measurement of dimn (1, num_slices, x, y, 2), 
+#        take ifft and return either the
+#        real components, imag components, or combined magnitude '''
+#    
+#    fimg = ifft_2d(measurement)
+#    raise TypeError('new ifft_2d() outputs (-2,-1) as spatial dimensions - \
+#                    might cause issue with below code')
+#    
+#    if mode == 'both':
+#        return torch.sqrt(fimg[:,:,:,:,0]**2 + fimg[:,:,:,:,1]**2)
+#    elif mode == 'real':
+#        return torch.tensor(fimg[:,:,:,:,0]) #torch.sqrt(fimg[:,:,:,:,0]**2)
+#    elif mode == 'imag':
+#        return torch.sqrt(fimg[:,:,:,:,1]**2)
 
-def channels2imgs(out): #TODO: replace this function via utils.transform.py
-    sh = out.shape
-    chs = int(sh[0]/2)
-    imgs = np.zeros( (chs,sh[1],sh[2]) )
-    for i in range(chs):
-        imgs[i] = np.sqrt( out[2*i]**2 + out[2*i+1]**2 )
-    return imgs
+#def channels2imgs(out): 
+#    sh = out.shape
+#    chs = int(sh[0]/2)
+#    imgs = np.zeros( (chs,sh[1],sh[2]) )
+#    for i in range(chs):
+#        imgs[i] = np.sqrt( out[2*i]**2 + out[2*i+1]**2 )
+#    return imgs

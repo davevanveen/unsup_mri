@@ -134,6 +134,13 @@ def fft_2d(arr):
 
     return arr
 
+def root_sum_squares(arr):
+    ''' given 3d complex arr [nc,x,y], perform rss over magnitudes 
+        return 2d arr [x,y] '''
+    
+    assert is_complex(arr)
+    return torch.sqrt(torch.sum(torch.square(abs(arr)), axis=0))
+
 def is_complex(arr):
     dt = arr.dtype
     return dt==torch.complex64 or dt==torch.complex128 or dt==torch.complex32

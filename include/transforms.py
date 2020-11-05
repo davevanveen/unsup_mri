@@ -72,18 +72,18 @@ def ifft2(data):
 
 
 # TODO: replace w updated function
-def root_sum_of_squares(data, dim=0):
-    """
-    Compute the Root Sum of Squares (RSS) transform along a given dimension of a tensor.
-
-    Args:
-        data (torch.Tensor): The input tensor
-        dim (int): The dimensions along which to apply the RSS transform
-
-    Returns:
-        torch.Tensor: The RSS value
-    """
-    return torch.sqrt((data ** 2).sum(dim))
+#def root_sum_of_squares(data, dim=0):
+#    """
+#    Compute the Root Sum of Squares (RSS) transform along a given dimension of a tensor.
+#
+#    Args:
+#        data (torch.Tensor): The input tensor
+#        dim (int): The dimensions along which to apply the RSS transform
+#
+#    Returns:
+#        torch.Tensor: The RSS value
+#    """
+#    return torch.sqrt((data ** 2).sum(dim))
 
 
 def center_crop(data, shape):

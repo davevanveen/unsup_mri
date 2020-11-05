@@ -98,17 +98,32 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
             
             optimizer.zero_grad()
             
-            out = net(net_input) # out is in img space
-            out_ksp_masked = forwardm(out, mask2d) # convert img to ksp, apply mask
+            out = net(net_input) # out is in image space
 
-            #if DC_STEP: # ... see code inlay at bottom of file
+            # forwardm(): converts im to ksp, apply mask, and return the masked ksp
+            out_ksp_masked = forwardm(out, mask2d)
+
+            #if DC_STEP:
+            #    # enforces data consistency w indexing
+            #    #out_ksp_dc = data_consistency_iter(ksp=out_ksp_masked, 
+            #    #           ksp_orig=ksp_orig, mask1d=mask1d, alpha=alpha)
+            #    
+            #    # TODO: build alternative way of enforcing data consistency with a regularizer
+            #    # but this is already what we are doing, at least for final layer
+            #    loss_ksp = mse(out_ksp_dc, ksp_masked)
+            #else:
+            #    if c_wmse:
+            #        loss_ksp = w_mse(out_ksp_masked, ksp_masked, c_wmse) # loss wrt masked k-space
+            #    else:
             loss_ksp = mse(out_ksp_masked, ksp_masked)
             
+            # TODO: why do we backprop on loss_ksp and not loss_img? think about this
             loss_ksp.backward(retain_graph=False) # prev false
             
-            # store loss over each iteration
             mse_wrt_ksp[i] = loss_ksp.data.cpu().numpy()
-            loss_img = mse(out, img_masked) # loss in img space
+
+            # loss in image space
+            loss_img = mse(out, img_masked)
             mse_wrt_img[i] = loss_img.data.cpu().numpy()
 
             return loss_ksp   
@@ -126,21 +141,8 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
 def forwardm(img, mask):
     ''' convert img --> ksp, apply mask
         img + output each have dimension (2*num_slices, x,y) '''
-    
-    img = reshape_adj_channels_to_be_complex(img[0]) # [1,2*nc,x,y] real --> [nc,x,y] complex
+
+    img = reshape_adj_channels_to_be_complex(img[0])[None,:] # [1,2*nc,x,y] real --> [nc,x,y] complex
     ksp = fft_2d(img).type(dtype)
 
     return ksp * mask
-
-#if DC_STEP:
-#    # enforces data consistency w indexing
-#    #out_ksp_dc = data_consistency_iter(ksp=out_ksp_masked, 
-#    #           ksp_orig=ksp_orig, mask1d=mask1d, alpha=alpha)
-#    
-#    # TODO: build alternative way of enforcing data consistency with a regularizer
-#    # but this is already what we are doing, at least for final layer
-#    loss_ksp = mse(out_ksp_dc, ksp_masked)
-#else:
-#    if c_wmse:
-#        loss_ksp = w_mse(out_ksp_masked, ksp_masked, c_wmse) # loss wrt masked k-space
-#    else:

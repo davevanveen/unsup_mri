@@ -2,6 +2,10 @@ import torch
 import torch.nn as nn
 import numpy as np
 from copy import copy
+from torch.autograd import Variable
+
+from utils.transform import reshape_adj_channels_to_be_complex, \
+                            root_sum_squares, ifft_2d
 
 dtype=torch.cuda.FloatTensor
 
@@ -123,13 +127,13 @@ def convdecoder(
 def init_convdecoder(ksp_orig, mask, \
                      in_size=[8,4], num_layers=8, num_channels=160, kernel_size=3):
     ''' wrapper function for initializing convdecoder based on input ksp_orig
-        
-        parameters: 
+
+        parameters:
                 ksp_orig: original, unmasked k-space measurements
                 mask: mask used to downsample original k-space
         return:
                 net: initialized convdecoder
-                net_input: random, scaled input seed 
+                net_input: random, scaled input seed
                 ksp_orig: scaled version of input '''
 
     out_size = ksp_orig.shape[1:] # shape of (x,y) image slice, e.g. (640, 368)
@@ -139,14 +143,15 @@ def init_convdecoder(ksp_orig, mask, \
     net = convdecoder(in_size, out_size, out_depth, num_layers, \
                       strides, num_channels).type(dtype)
 #     print('# parameters of ConvDecoder:',num_params(net))
-    
+
     # generate network input + fix scaling
     scale_factor, net_input = get_scale_factor_and_net_input(net, num_channels, in_size, ksp_orig)
     ksp_orig = ksp_orig * scale_factor
-    
+
     return net, net_input, ksp_orig
 
-def get_scale_factor(net, num_channels, in_size, ksp_orig, scale_out=1, scale_type='norm'):
+def get_scale_factor_and_net_input(net, num_channels, in_size, ksp_orig,
+                                   scale_out=1, scale_type='norm'):
     ''' return net_input, e.g. tensor w values sampled uniformly on [0,1]
 
         return scaling factor, i.e. difference in magnitudes scaling b/w:
@@ -158,23 +163,15 @@ def get_scale_factor(net, num_channels, in_size, ksp_orig, scale_out=1, scale_ty
     torch.manual_seed(0)
     net_input.data.uniform_()
 
-    # generate random image
-    try:
-        out_chs = net(net_input.type(dtype), scale_out=scale_out).data.cpu().numpy()[0]
-    except:
-        out_chs = net(net_input.type(dtype)).data.cpu().numpy()[0]
-    out_imgs = channels2imgs(out_chs)
-    out_img_tt = transform.root_sum_of_squares(torch.tensor(out_imgs), dim=0)
+    # generate random img
+    out = torch.from_numpy(net(net_input.type(dtype)).data.cpu().numpy()[0])
+    out = reshape_adj_channels_to_be_complex(out)
+    out_img = root_sum_squares(out)
 
-    # get norm of least-squares reconstruction
-    ksp_tt = ksp_orig # should be tensor already, don't want to reshape
-    orig_tt = ifft_2d(ksp_tt)   # apply ifft get the complex image
-    orig_img_tt = torch.sqrt(torch.sum(torch.square(abs(orig_tt)), axis=0))
-    orig_img_np = orig_img_tt.cpu().numpy()
+    # get img of sample
+    orig = ifft_2d(ksp_orig)   # apply ifft get the complex image
+    orig_img = root_sum_squares(orig)
 
-    if scale_type == "norm":
-        scale = np.linalg.norm(out_img_tt) / np.linalg.norm(orig_img_np)
-    if scale_type == "mean":
-        scale = (out_img_tt.mean() / orig_img_np.mean()).numpy()[np.newaxis][0]
+    scale = torch.linalg.norm(out_img) / torch.linalg.norm(orig_img)
 
     return scale, net_input
