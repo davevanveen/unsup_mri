@@ -67,18 +67,6 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
             net: the best network, whose output would be in image space
             mse_wrt_ksp: mse(ksp_masked, fft(out)*mask) over each iteration
             mse_wrt_img: mse(img_masked, out) over each iteration
-    
-        notes on the original code via heckel paper
-            - initialized out_grads, out_weights, + gave opt_input option
-            - gave option to generate net_input via upsampling, reshaping, scaling
-            - within closure()
-                - adjusted scaling of input
-                - applied mask when computing loss = mse( , )
-                - provided option for showing imgs, plotting stuff, and outputting weights
-                - if opt_input=True, would save best_net_input
-                - computed ssim, psnr, across iterations w unmasked least-squares recon
-                    - requires img_ls argument
-            - returned many additional variables
     '''            
 
     # initialize variables
@@ -95,6 +83,12 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
     optimizer = torch.optim.Adam(p, lr=lr,weight_decay=0)
     mse = torch.nn.MSELoss()
 
+    # want correct dtypes + img_masked to be shape [1,2*nc,x,y]
+    ksp_masked = ksp_masked.type(dtype)
+    img_masked = torch.cat([torch.real(img_masked), torch.imag(img_masked)])
+    img_masked = img_masked[None, :].type(dtype)
+    mask2d = mask2d.type(dtype)
+
     for i in range(num_iter):
         def closure(): # execute this for each iteration (gradient step)
             
@@ -102,16 +96,13 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
             
             out = net(net_input) # out is in image space
 
-            # forwardm(): converts img to ksp, apply mask, and return the masked ksp
-                # TODO: compare forwardm to utils.transform.apply_mask()
-                # add forwardm().half() to do with half precision
-            out_ksp_masked = forwardm(out, mask2d).type(dtype)
+            # forwardm(): converts im to ksp, apply mask, and return the masked ksp
+            out_ksp_masked = forwardm(out, mask2d)
 
             if DC_STEP:
                 # enforces data consistency w indexing
                 #out_ksp_dc = data_consistency_iter(ksp=out_ksp_masked, 
-                #                                   ksp_orig=ksp_orig, mask1d=mask1d, 
-                #                                   alpha=alpha)
+                #           ksp_orig=ksp_orig, mask1d=mask1d, alpha=alpha)
                 
                 # TODO: build alternative way of enforcing data consistency with a regularizer
                 # but this is already what we are doing, at least for final layer
@@ -120,6 +111,7 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
                 if c_wmse:
                     loss_ksp = w_mse(out_ksp_masked, ksp_masked, c_wmse) # loss wrt masked k-space
                 else:
+                    
                     loss_ksp = mse(out_ksp_masked, ksp_masked)
             
             # TODO: why do we backprop on loss_ksp and not loss_img? think about this
@@ -128,7 +120,7 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
             mse_wrt_ksp[i] = loss_ksp.data.cpu().numpy()
 
             # loss in image space
-            loss_img = mse(out, img_masked.type(dtype))
+            loss_img = mse(out, img_masked)
             mse_wrt_img[i] = loss_img.data.cpu().numpy()
 
             return loss_ksp   

@@ -69,6 +69,23 @@ def reshape_complex_channels_to_sep_dimn(arr):
 
     return arr_out
 
+def reshape_adj_channels_to_be_complex(arr):
+    ''' given 3d real tensor shape [2*nc, x, y] with alternating real/complex slices in first dimn
+        return 3d complex tensor shape [nc, x, y] '''
+    
+    assert  not is_complex(arr)
+    assert len(arr.shape) == 3 # i.e. (2*nc, x, y)
+    
+    num_slices = int(arr.shape[0]/2) # 15*2=30, i.e. real/complex separate
+    shape_out = (num_slices, arr.shape[1], arr.shape[2])
+    arr_out = torch.empty(shape_out, dtype=torch.complex64)
+    
+    for i in range(num_slices):
+        arr_out[i,:,:].real = arr[2*i,:,:] 
+        arr_out[i,:,:].imag = arr[2*i+1,:,:]
+
+    return arr_out
+
 def combine_complex_channels(arr):
     ''' e.g. given npy array of shape (30,x,y)
         combine real/complex values into a single magnitude
@@ -93,6 +110,8 @@ def root_sum_of_squares(arr):
 def ifft_2d(arr):
     ''' apply centered 2d ifft, where (-2, -1) are spatial dimensions of arr '''
     
+    assert is_complex(arr) # input must be complex-valued
+
     dims = (-2,-1)
 
     arr = ifftshift(arr, dim=dims)
@@ -105,6 +124,8 @@ def ifft_2d(arr):
 def fft_2d(arr):
     ''' apply centered 2d fft, where (-2, -1) are spatial dimensions of arr '''
 
+    assert is_complex(arr) # input must be complex-valued
+
     dims=(-2,-1)
 
     arr = ifftshift(arr, dim=dims)
@@ -113,33 +134,38 @@ def fft_2d(arr):
 
     return arr
 
-def apply_mask(arr, mask=None, mask_func=None, seed=None):
-    ''' 
-    subsample given k-space by multiplying with a mask.
-    if no mask entered as input, generate via mask_func
+def is_complex(arr):
+    dt = arr.dtype
+    return dt==torch.complex64 or dt==torch.complex128 or dt==torch.complex32
 
-    args:
-        arr (torch.tensor): input k-space data of at least 3 dimns, where
-            dimns -3 and -2 are the spatial dimns, and the final dimn has size
-            2 (for complex values).
-        mask_func (callable): A function that takes a shape (tuple of ints) and a random
-            number seed and returns a mask.
-        seed (int, optional): seed for the random number generator.
-    returns:
-        masked data (torch.tensor): subsampled k-space data
-        mask (torch.tensor): the generated mask
-    '''
-    
-    if mask is None:
-        raise NotImplementedError('Need to gnerate new mask')
-        #shape = np.array(arr.shape)
-        #shape[:-3] = 1
-        #mask = mask_func(shape, seed)
-    
-    if arr.shape[2] != mask.shape[2]: # added to avoid dim error
-        mask = mask[:, :, :arr.shape[2], :]
-
-    return arr*mask#, mask
+# TODO: delete this
+#def apply_mask(arr, mask=None, mask_func=None, seed=None):
+#    ''' 
+#    subsample given k-space by multiplying with a mask.
+#    if no mask entered as input, generate via mask_func
+#
+#    args:
+#        arr (torch.tensor): input k-space data of at least 3 dimns, where
+#            dimns -3 and -2 are the spatial dimns, and the final dimn has size
+#            2 (for complex values).
+#        mask_func (callable): A function that takes a shape (tuple of ints) and a random
+#            number seed and returns a mask.
+#        seed (int, optional): seed for the random number generator.
+#    returns:
+#        masked data (torch.tensor): subsampled k-space data
+#        mask (torch.tensor): the generated mask
+#    '''
+#    
+#    if mask is None:
+#        raise NotImplementedError('Need to gnerate new mask')
+#        #shape = np.array(arr.shape)
+#        #shape[:-3] = 1
+#        #mask = mask_func(shape, seed)
+#    
+#    if arr.shape[2] != mask.shape[2]: # added to avoid dim error
+#        mask = mask[:, :, :arr.shape[2], :]
+#
+#    return arr*mask#, mask
 
 ###################################################################
 ### helper functions for use within script, i.e. not for export ###

@@ -3,9 +3,7 @@ import torch.nn as nn
 import numpy as np
 from copy import copy
 
-from .mri_helpers import get_scale_factor
-
-dtype=torch.cuda.FloatTensor #TODO: fix this
+dtype=torch.cuda.FloatTensor
 
 def add_module(self, module):
     self.add_module(str(len(self) + 1), module)
@@ -122,20 +120,20 @@ def convdecoder(
                          #dtype=dtype)
     return model
 
-def init_convdecoder(slice_ksp, mask, \
+def init_convdecoder(ksp_orig, mask, \
                      in_size=[8,4], num_layers=8, num_channels=160, kernel_size=3):
-    ''' wrapper function for initializing convdecoder based on input slice_ksp
+    ''' wrapper function for initializing convdecoder based on input ksp_orig
         
         parameters: 
-                slice_ksp: original, unmasked k-space measurements
+                ksp_orig: original, unmasked k-space measurements
                 mask: mask used to downsample original k-space
         return:
                 net: initialized convdecoder
                 net_input: random, scaled input seed 
-                slice_ksp: scaled version of input '''
+                ksp_orig: scaled version of input '''
 
-    out_size = slice_ksp.shape[1:] # shape of (x,y) image slice, e.g. (640, 368)
-    out_depth = slice_ksp.shape[0]*2 # 2*n_c, i.e. 2*15=30 if multi-coil
+    out_size = ksp_orig.shape[1:] # shape of (x,y) image slice, e.g. (640, 368)
+    out_depth = ksp_orig.shape[0]*2 # 2*n_c, i.e. 2*15=30 if multi-coil
     strides = [1]*(num_layers-1)
 
     net = convdecoder(in_size, out_size, out_depth, num_layers, \
@@ -143,10 +141,40 @@ def init_convdecoder(slice_ksp, mask, \
 #     print('# parameters of ConvDecoder:',num_params(net))
     
     # generate network input + fix scaling
-    scale_factor, net_input = get_scale_factor(net,
-                                       num_channels,
-                                       in_size,
-                                       slice_ksp)
-    slice_ksp = slice_ksp * scale_factor
+    scale_factor, net_input = get_scale_factor_and_net_input(net, num_channels, in_size, ksp_orig)
+    ksp_orig = ksp_orig * scale_factor
     
-    return net, net_input, slice_ksp
+    return net, net_input, ksp_orig
+
+def get_scale_factor(net, num_channels, in_size, ksp_orig, scale_out=1, scale_type='norm'):
+    ''' return net_input, e.g. tensor w values sampled uniformly on [0,1]
+
+        return scaling factor, i.e. difference in magnitudes scaling b/w:
+        original image and random image of network output = net(net_input) '''
+
+    # create net_input, e.g. tensor with values sampled uniformly on [0,1]
+    shape = [1,num_channels, in_size[0], in_size[1]]
+    net_input = Variable(torch.zeros(shape)).type(dtype)
+    torch.manual_seed(0)
+    net_input.data.uniform_()
+
+    # generate random image
+    try:
+        out_chs = net(net_input.type(dtype), scale_out=scale_out).data.cpu().numpy()[0]
+    except:
+        out_chs = net(net_input.type(dtype)).data.cpu().numpy()[0]
+    out_imgs = channels2imgs(out_chs)
+    out_img_tt = transform.root_sum_of_squares(torch.tensor(out_imgs), dim=0)
+
+    # get norm of least-squares reconstruction
+    ksp_tt = ksp_orig # should be tensor already, don't want to reshape
+    orig_tt = ifft_2d(ksp_tt)   # apply ifft get the complex image
+    orig_img_tt = torch.sqrt(torch.sum(torch.square(abs(orig_tt)), axis=0))
+    orig_img_np = orig_img_tt.cpu().numpy()
+
+    if scale_type == "norm":
+        scale = np.linalg.norm(out_img_tt) / np.linalg.norm(orig_img_np)
+    if scale_type == "mean":
+        scale = (out_img_tt.mean() / orig_img_np.mean()).numpy()[np.newaxis][0]
+
+    return scale, net_input
