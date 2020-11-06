@@ -144,34 +144,35 @@ def init_convdecoder(ksp_orig, mask, \
                       strides, num_channels).type(dtype)
 #     print('# parameters of ConvDecoder:',num_params(net))
 
-    # generate network input + fix scaling
-    scale_factor, net_input = get_scale_factor_and_net_input(net, num_channels, in_size, ksp_orig)
-    ksp_orig = ksp_orig * scale_factor
+    net_input = get_net_input(num_channels, in_size)
+    
+    # create scaled ksp to be compatible w network magnitude
+    scale_factor = get_scale_factor(net, net_input, ksp_orig)
+    ksp_orig_ = ksp_orig * scale_factor
 
-    return net, net_input, ksp_orig
+    return net, net_input, ksp_orig_
 
-def get_scale_factor_and_net_input(net, num_channels, in_size, ksp_orig,
-                                   scale_out=1, scale_type='norm'):
-    ''' return net_input, e.g. tensor w values sampled uniformly on [0,1]
-
-        return scaling factor, i.e. difference in magnitudes scaling b/w:
-        original image and random image of network output = net(net_input) '''
-
-    # create net_input, e.g. tensor with values sampled uniformly on [0,1]
-    shape = [1,num_channels, in_size[0], in_size[1]]
+def get_net_input(num_channels, in_size):
+    ''' return net_input, e.g. tensor w values samples uniformly on [0,1] '''
+    
+    shape = [1, num_channels, in_size[0], in_size[1]]
     net_input = Variable(torch.zeros(shape)).type(dtype)
     torch.manual_seed(0)
     net_input.data.uniform_()
+
+    return net_input
+
+def get_scale_factor(net, net_input, ksp_orig):
+    ''' return scaling factor, i.e. difference in magnitudes scaling b/w:
+        original image and random image of network output = net(net_input) '''
 
     # generate random img
     out = torch.from_numpy(net(net_input.type(dtype)).data.cpu().numpy()[0])
     out = reshape_adj_channels_to_be_complex(out)
     out_img = root_sum_squares(out)
 
-    # get img of sample
-    orig = ifft_2d(ksp_orig)   # apply ifft get the complex image
+    # get img of input sample
+    orig = ifft_2d(ksp_orig)  
     orig_img = root_sum_squares(orig)
 
-    scale = torch.linalg.norm(out_img) / torch.linalg.norm(orig_img)
-
-    return scale, net_input
+    return torch.linalg.norm(out_img) / torch.linalg.norm(orig_img)
