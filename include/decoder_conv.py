@@ -4,7 +4,7 @@ import numpy as np
 from copy import copy
 from torch.autograd import Variable
 
-from utils.transform import reshape_adj_channels_to_be_complex, \
+from utils.transform import reshape_adj_channels_to_complex_vals, \
                             root_sum_squares, ifft_2d
 
 dtype=torch.cuda.FloatTensor
@@ -168,7 +168,7 @@ def get_scale_factor(net, net_input, ksp_orig):
 
     # generate random img
     out = torch.from_numpy(net(net_input.type(dtype)).data.cpu().numpy()[0])
-    out = reshape_adj_channels_to_be_complex(out)
+    out = reshape_adj_channels_to_complex_vals(out)
     out_img = root_sum_squares(out)
 
     # get img of input sample

@@ -9,7 +9,8 @@ from .mri_helpers import data_consistency_iter
 from .transforms import *
 sys.path.append('/home/vanveen/ConvDecoder/')
 from utils.transform import fft_2d, ifft_2d, root_sum_squares, \
-                            reshape_adj_channels_to_be_complex
+                            reshape_complex_vals_to_adj_channels, \
+                            reshape_adj_channels_to_complex_vals
 
 dtype = torch.cuda.FloatTensor
 
@@ -85,13 +86,10 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
     optimizer = torch.optim.Adam(p, lr=lr,weight_decay=0)
     mse = torch.nn.MSELoss()
 
-    # want correct dtypes + img_masked to be shape [1,2*nc,x,y]
-    ksp_masked = ksp_masked.type(dtype)
-    img_masked = torch.cat([torch.real(img_masked), torch.imag(img_masked)])
-    img_masked = img_masked[None, :].type(dtype)
-    mask2d = mask2d.type(dtype)
-
-    torch.autograd.set_detect_anomaly(True)
+    # convert complex [nc,x,y] --> real [2*nc,x,y] to match w net output
+    ksp_masked = reshape_complex_vals_to_adj_channels(ksp_masked).cuda()
+    img_masked = reshape_complex_vals_to_adj_channels(img_masked)[None,:].cuda()
+    mask2d = mask2d.cuda()
 
     for i in range(num_iter):
         def closure(): # execute this for each iteration (gradient step)
@@ -104,7 +102,7 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
             #if DC_STEP: # ... see code inlay at bottom of file
             loss_ksp = mse(out_ksp_masked, ksp_masked)
             
-            loss_ksp.backward(retain_graph=False) # prev false
+            loss_ksp.backward(retain_graph=False) 
             
             # store loss over each iteration
             mse_wrt_ksp[i] = loss_ksp.data.cpu().numpy()
@@ -123,14 +121,16 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
     
     return best_net, mse_wrt_ksp, mse_wrt_img
 
-def forwardm(img, mask):
-    ''' convert img --> ksp, apply mask
-        img + output each have dimension (2*num_slices, x,y) '''
-    
-    img = reshape_adj_channels_to_be_complex(img[0]) # [1,2*nc,x,y] real --> [nc,x,y] complex
-    ksp = fft_2d(img).type(dtype)
 
-    return ksp * mask
+def forwardm(img, mask):
+    ''' convert img --> ksp (must be complex for fft), apply mask
+        input, output should have dim [2*nc,x,y] '''
+
+    img = reshape_adj_channels_to_complex_vals(img[0]) 
+    ksp = fft_2d(img).cuda()
+    ksp_masked_ = ksp * mask
+    
+    return reshape_complex_vals_to_adj_channels(ksp_masked_)
 
 #if DC_STEP:
 #    # enforces data consistency w indexing

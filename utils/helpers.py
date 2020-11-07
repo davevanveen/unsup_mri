@@ -5,7 +5,6 @@ import numpy as np
 import torch
 import h5py
 
-from utils.transform import np_to_tt
 from include.subsample import MaskFunc
 
 def load_h5(file_id):
@@ -36,7 +35,7 @@ def get_masks(file_h5, slice_ksp, center_fractions=[0.07], accelerations=[4]):
 
     try: # if .h5 file has a mask
         mask1d = np.array([1 if e else 0 for e in file_h5["mask"]]) # load 1D binary mask
-        mask = np_to_tt(np.array([[mask1d[np.newaxis].T]]))
+        mask = torch.from_numpy(np.array([[mask1d[np.newaxis].T]]))
     except: # generate a new mask according to specified parameters
         mask_func = MaskFunc(center_fractions=center_fractions, \
                              accelerations=accelerations)

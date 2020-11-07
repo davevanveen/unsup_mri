@@ -1,21 +1,9 @@
 import torch 
-import torchvision
 import os, sys
 import numpy as np
-from PIL import Image
-import PIL
-import copy
 from torch.autograd import Variable
-import matplotlib.pyplot as plt
 
-from . import transforms as transform
-from .helpers import np_to_var
-
-from utils.transform import np_to_tt, np_to_var, ifft_2d, fft_2d, \
-                            reshape_complex_channels_to_sep_dimn, \
-                            reshape_complex_channels_to_be_adj, \
-                            split_complex_vals, recon_ksp_to_img, \
-                            reshape_adj_channels_to_be_complex
+#from .helpers import np_to_var
 
 dtype = torch.cuda.FloatTensor
 
@@ -61,6 +49,8 @@ def data_consistency(img_out, slice_ksp, mask1d):
                 img_dc: data-consistent output image
                 img_est: output image without data consistency '''
     
+    raise NotImplementedError('redo this function based on new processing')
+
     #img_out = reshape_complex_channels_to_sep_dimn(img_out)
 
     # now get F*G(\hat{C}), i.e. estimated recon in k-space
@@ -76,38 +66,3 @@ def data_consistency(img_out, slice_ksp, mask1d):
     img_est = recon_ksp_to_img(ksp_est.detach().cpu())
     
     return img_dc, img_est
-
-# TODO: delete deprecated functions
-def forwardm(img, mask):
-    ''' convert img --> ksp, apply mask
-        img + output each have dimension (2*num_slices, x,y) '''
-
-    img = reshape_adj_channels_to_be_complex(img[0]) # [1,2*nc,x,y] real --> [nc,x,y] complex
-    ksp = fft_2d(img).type(dtype) 
-    ksp_masked = ksp * mask
-
-    return ksp_masked
-
-#def lsreconstruction(measurement,mode='both'):
-#    ''' given measurement of dimn (1, num_slices, x, y, 2), 
-#        take ifft and return either the
-#        real components, imag components, or combined magnitude '''
-#    
-#    fimg = ifft_2d(measurement)
-#    raise TypeError('new ifft_2d() outputs (-2,-1) as spatial dimensions - \
-#                    might cause issue with below code')
-#    
-#    if mode == 'both':
-#        return torch.sqrt(fimg[:,:,:,:,0]**2 + fimg[:,:,:,:,1]**2)
-#    elif mode == 'real':
-#        return torch.tensor(fimg[:,:,:,:,0]) #torch.sqrt(fimg[:,:,:,:,0]**2)
-#    elif mode == 'imag':
-#        return torch.sqrt(fimg[:,:,:,:,1]**2)
-
-#def channels2imgs(out): 
-#    sh = out.shape
-#    chs = int(sh[0]/2)
-#    imgs = np.zeros( (chs,sh[1],sh[2]) )
-#    for i in range(chs):
-#        imgs[i] = np.sqrt( out[2*i]**2 + out[2*i+1]**2 )
-#    return imgs
