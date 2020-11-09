@@ -1,4 +1,4 @@
-''' various fucntions for data transformations '''
+''' various functions for data transformations '''
 
 import os, sys
 import numpy as np
