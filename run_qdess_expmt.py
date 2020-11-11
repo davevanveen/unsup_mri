@@ -24,18 +24,6 @@ if torch.cuda.is_available():
     torch.cuda.set_device(1)
 
 
-def load_mask(accel, C=32):
-    ''' load pre-made mask according to accel factor
-        force central CxC pixels in mask to be 1 '''
-
-    mask = torch.from_numpy(np.load('ipynb/mask_poisson_disc_{}x.npy'.format(accel)))
-    mask = abs(mask).type(torch.uint8)
-    idx_y, idx_z = mask.shape[0] // 2, mask.shape[1] // 2
-    mask[idx_y-C:idx_y+C, idx_z-C:idx_z+C] = 1
-
-    return mask
-
-
 def run_expmt():
 
     path_in = '/bmrNAS/people/arjun/data/qdess_knee_2020/files_recon_calib-16/'
@@ -48,7 +36,7 @@ def run_expmt():
 
     for fn in files[:NUM_SAMPS]:
 
-        # load data
+       # load data
         f = h5py.File(path_in + fn, 'r')
         try:
             ksp = torch.from_numpy(f['kspace'][()])
@@ -66,7 +54,9 @@ def run_expmt():
         for ACCEL in ACCEL_LIST:
             
             path_out = '/bmrNAS/people/dvv/out_qdess/accel_{}x/'.format(ACCEL)
-            mask = load_mask(ACCEL, C=32)
+            
+            # original masks created w central region 32x32 forced to 1's
+            mask = torch.from_numpy(np.load('ipynb/mask_poisson_disc_{}x.npy'.format(ACCEL)))
 
             # initialize network
             net, net_input, ksp_orig_ = init_convdecoder(ksp_orig, mask)
