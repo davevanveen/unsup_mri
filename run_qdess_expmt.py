@@ -44,7 +44,7 @@ def run_expmt():
     NUM_SAMPS = 10 # number of samples to recon
        
     NUM_ITER = 10000
-    ACCEL_LIST = [6,8]
+    ACCEL_LIST = [12]
 
     for fn in files[:NUM_SAMPS]:
 
@@ -84,7 +84,7 @@ def run_expmt():
             
             # perform dc step
             ksp_est = fft_2d(img_out)
-            ksp_dc = torch.where(mask, ksp_masked, ksp_est) # dc step
+            ksp_dc = torch.where(mask, ksp_masked, ksp_est)
 
             # create data-consistent, ground-truth images from k-space
             img_dc = root_sum_squares(ifft_2d(ksp_dc)).detach()
