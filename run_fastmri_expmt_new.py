@@ -37,7 +37,7 @@ def get_mask(ksp_orig, center_fractions=[0.07], accelerations=[4]):
 
     return mask[0,:,0].type(torch.uint8)
 
-path_out = '/bmrNAS/people/dvv/out_fastmri/new_pytorch1.7/'
+path_out = '/bmrNAS/people/dvv/out_fastmri/new_pytorch1.7/norm_ortho/'
 
 dim = 320
 

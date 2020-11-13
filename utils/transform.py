@@ -141,7 +141,8 @@ def ifft_2d(arr):
     dims = (-2,-1)
 
     arr = ifftshift(arr, dim=dims)
-    arr = torch.fft.ifftn(arr, dim=dims)
+    # TODO: resolve! added norm='ortho' for fastmri expmt, but didn't have that arg for qdess
+    arr = torch.fft.ifftn(arr, dim=dims, norm='ortho')
     arr = fftshift(arr, dim=dims)
 
     return arr
@@ -155,7 +156,8 @@ def fft_2d(arr):
     dims=(-2,-1)
 
     arr = ifftshift(arr, dim=dims)
-    arr = torch.fft.fftn(arr, dim=dims)
+    # TODO: resolve! added norm='ortho' for fastmri expmt, but didn't have that arg for qdess
+    arr = torch.fft.fftn(arr, dim=dims, norm='ortho')
     arr = fftshift(arr, dim=dims)
 
     return arr
