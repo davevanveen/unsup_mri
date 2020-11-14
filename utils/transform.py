@@ -11,23 +11,33 @@ def reshape_adj_channels_to_complex_vals(arr):
     ''' reshape real tensor dim [2*nc,x,y] --> complex tensor dim [nc,x,y]
         assumes first nc sub-arrays are real, second nc are imag i.e. not alternating 
         inverse operation of reshape_complex_vals_to_adj_channels() '''
-   
+
     assert not is_complex(arr) # input should be real-valued
-    
+
     nc = int(arr.shape[0] // 2) # num_channels
     arr_out = torch.empty((nc, arr.shape[1], arr.shape[2]), dtype=torch.complex64)
     arr_out.real = arr[0:nc]
     arr_out.imag = arr[nc:2*nc]
-    
+    #for idx in range(nc):
+    #    arr_out[idx].real = arr[2*idx]
+    #    arr_out[idx].imag = arr[2*idx+1]
+        
     return arr_out
 
 def reshape_complex_vals_to_adj_channels(arr):
     ''' reshape complex tensor dim [nc,x,y] --> real tensor dim [2*nc,x,y]
         s.t. concat([nc,x,y] real, [nc,x,y] imag), i.e. not alternating real/imag 
         inverse operation of reshape_adj_channels_to_complex_vals() '''
-        
-    assert is_complex(arr) # input should be complex-valued
 
+    assert is_complex(arr) # input should be complex-valued
+    
+    #nc = int(arr.shape[0])
+    #arr_out = torch.empty((2*nc, arr.shape[1], arr.shape[2]))
+    #for idx in range(nc):
+    #    arr_out[2*idx] = arr[idx].real
+    #    arr_out[2*idx+1] = arr[idx].imag
+    #
+    #return arr_out
     return torch.cat([torch.real(arr), torch.imag(arr)])
 
 # TODO: delete deprecated functions commented out below
