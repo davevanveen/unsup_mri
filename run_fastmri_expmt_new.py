@@ -76,6 +76,7 @@ for scale_fac in scale_fac_list:
         img_est = crop_center(root_sum_squares(ifft_2d(ksp_est)).detach(), dim, dim)
         img_dc = crop_center(root_sum_squares(ifft_2d(ksp_dc)).detach(), dim, dim)
         img_gt = crop_center(root_sum_squares(ifft_2d(ksp_orig)), dim, dim)
+        print('note: use unscaled ksp_orig to make gt -- different from old fastmri processing')
 
         np.save('{}{}_est.npy'.format(path_out, file_id), img_est)
         np.save('{}{}_dc.npy'.format(path_out, file_id), img_dc)
