@@ -1,15 +1,18 @@
 from torch.autograd import Variable
 import torch
-import torch.optim
 import copy
 import numpy as np
-import time
-from scipy.linalg import hadamard
-from skimage.metrics import structural_similarity as ssim
+import os, sys
 
 from .helpers import *
-from .mri_helpers import * #forwardm, 
+from .mri_helpers import data_consistency_iter
 from .transforms import *
+sys.path.append('/home/vanveen/ConvDecoder/')
+from utils.transform import fft_2d, ifft_2d, root_sum_squares, \
+                            reshape_complex_vals_to_adj_channels, \
+                            reshape_adj_channels_to_complex_vals
+
+dtype = torch.cuda.FloatTensor
 
 def sqnorm(a):
     return np.sum( a*a )
@@ -28,6 +31,12 @@ def get_weights(net):
             weights += [m.weight.data.cpu().numpy()]
     return weights
 
+def w_mse(x, y, c_wmse):
+    ''' weighted mse by values of k-space '''
+    ones = torch.ones(1).expand_as(x).type(dtype)
+    mask = torch.where(x>1, c_wmse*x, ones)
+    return torch.mean(mask * (x-y)**2)
+
 class MSLELoss(torch.nn.Module):
     def __init__(self):
         super(MSLELoss,self).__init__()
@@ -39,7 +48,8 @@ class MSLELoss(torch.nn.Module):
 
 def fit(ksp_masked, img_masked, net, net_input, mask2d, 
         mask1d=None, ksp_orig=None, DC_STEP=False, alpha=0.5,
-        num_iter=5000, lr=0.01, img_ls=None, dtype=torch.cuda.FloatTensor):
+        num_iter=5000, lr=0.01, img_ls=None, dtype=torch.cuda.FloatTensor, 
+        c_wmse=None):
     ''' fit a network to masked k-space measurement
         args:
             ksp_masked: masked k-space of a single slice. torch variable [1,C,H,W]
@@ -60,18 +70,6 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
             net: the best network, whose output would be in image space
             mse_wrt_ksp: mse(ksp_masked, fft(out)*mask) over each iteration
             mse_wrt_img: mse(img_masked, out) over each iteration
-    
-        notes on the original code via heckel paper
-            - initialized out_grads, out_weights, + gave opt_input option
-            - gave option to generate net_input via upsampling, reshaping, scaling
-            - within closure()
-                - adjusted scaling of input
-                - applied mask when computing loss = mse( , )
-                - provided option for showing imgs, plotting stuff, and outputting weights
-                - if opt_input=True, would save best_net_input
-                - computed ssim, psnr, across iterations w unmasked least-squares recon
-                    - requires img_ls argument
-            - returned many additional variables
     '''            
 
     # initialize variables
@@ -88,33 +86,27 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
     optimizer = torch.optim.Adam(p, lr=lr,weight_decay=0)
     mse = torch.nn.MSELoss()
 
+    # convert complex [nc,x,y] --> real [2*nc,x,y] to match w net output
+    ksp_masked = reshape_complex_vals_to_adj_channels(ksp_masked).cuda()
+    img_masked = reshape_complex_vals_to_adj_channels(img_masked)[None,:].cuda()
+    mask2d = mask2d.cuda()
+
     for i in range(num_iter):
         def closure(): # execute this for each iteration (gradient step)
             
             optimizer.zero_grad()
             
-            out = net(net_input) # out is in image space
+            out = net(net_input) # out is in img space
+            out_ksp_masked = forwardm(out, mask2d).cuda() # convert img to ksp, apply mask
 
-            # forwardm(): converts img to ksp, apply mask, and return the masked ksp
-                # TODO: compare forwardm to utils.transform.apply_mask()
-                # add forwardm().half() to do with half precision
-            out_ksp_masked = forwardm(out, mask2d)
-
-            if DC_STEP:
-                out_ksp_dc = data_consistency_iter(ksp=out_ksp_masked, 
-                                                   ksp_orig=ksp_orig, mask1d=mask1d, 
-                                                   alpha=alpha)
-                loss_ksp = mse(out_ksp_dc, ksp_masked)
-            else:
-                loss_ksp = mse(out_ksp_masked, ksp_masked) # loss w.r.t. masked k-space
+            #if DC_STEP: # ... see code inlay at bottom of file
+            loss_ksp = mse(out_ksp_masked, ksp_masked)
             
-            # TODO: why do we backprop on loss_ksp and not loss_img? think about this
-            loss_ksp.backward(retain_graph=False)
+            loss_ksp.backward(retain_graph=False) 
             
+            # store loss over each iteration
             mse_wrt_ksp[i] = loss_ksp.data.cpu().numpy()
-
-            # loss in image space
-            loss_img = mse(out, img_masked.type(dtype))
+            loss_img = mse(out, img_masked) # loss in img space
             mse_wrt_img[i] = loss_img.data.cpu().numpy()
 
             return loss_ksp   
@@ -130,84 +122,25 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
     return best_net, mse_wrt_ksp, mse_wrt_img
 
 
-        
-def fit_multiple(net,
-        imgs, # list of images [ [1, color channels, W, H] ] 
-        num_channels,
-        num_iter = 5000,
-        lr = 0.01,
-        find_best=False,
-        upsample_mode="bilinear",
-       ):
-    # generate netinputs
-    # feed uniform noise into the network
-    nis = []
-    for i in range(len(imgs)):
-        if upsample_mode=="bilinear":
-            # feed uniform noise into the network 
-            totalupsample = 2**len(num_channels)
-        elif upsample_mode=="deconv":
-            # feed uniform noise into the network 
-            totalupsample = 2**(len(num_channels)-1)
-            #totalupsample = 2**len(num_channels)
-        width = int(imgs[0].data.shape[2]/totalupsample)
-        height = int(imgs[0].data.shape[3]/totalupsample)
-        shape = [1 ,num_channels[0], width, height]
-        print("shape: ", shape)
-        net_input = Variable(torch.zeros(shape))
-        net_input.data.uniform_()
-        net_input.data *= 1./10
-        nis.append(net_input)
+def forwardm(img, mask):
+    ''' convert img --> ksp (must be complex for fft), apply mask
+        input, output should have dim [2*nc,x,y] '''
 
-    # learnable parameters are the weights
-    p = [x for x in net.parameters() ]
+    img = reshape_adj_channels_to_complex_vals(img[0]) 
+    ksp = fft_2d(img).cuda()
+    ksp_masked_ = ksp * mask
+    
+    return reshape_complex_vals_to_adj_channels(ksp_masked_)
 
-    mse_wrt_noisy = np.zeros(num_iter)
-
-    optimizer = torch.optim.Adam(p, lr=lr)
-
-    mse = torch.nn.MSELoss() #.type(dtype) 
-
-    if find_best:
-        best_net = copy.deepcopy(net)
-        best_mse = 1000000.0
-
-    for i in range(num_iter):
-        
-        def closure():
-            optimizer.zero_grad()
-            
-            #loss = np_to_var(np.array([0.0]))
-            out = net(nis[0].type(dtype))
-            loss = mse(out, imgs[0].type(dtype)) 
-            #for img,ni in zip(imgs,nis):
-            for j in range(1,len(imgs)):
-                #out = net(ni.type(dtype))
-                #loss += mse(out, img.type(dtype))
-                out = net(nis[j].type(dtype))
-                loss += mse(out, imgs[j].type(dtype))
-        
-            #out = net(nis[0].type(dtype))
-            #out2 = net(nis[1].type(dtype))
-            #loss = mse(out, imgs[0].type(dtype)) + mse(out2, imgs[1].type(dtype))
-        
-            loss.backward()
-            mse_wrt_noisy[i] = loss.data.cpu().numpy()
-            
-            if i % 10 == 0:
-                print ('Iteration %05d    Train loss %f' % (i, loss.data), '\r', end='')
-            return loss
-        
-        loss = optimizer.step(closure)
-            
-        if find_best:
-            # if training loss improves by at least one percent, we found a new best net
-            if best_mse > 1.005*loss.data:
-                best_mse = loss.data
-                best_net = copy.deepcopy(net)
-                       
-    if find_best:
-        net = best_net
-    return mse_wrt_noisy, nis, net        
-        
-      
+#if DC_STEP:
+#    # enforces data consistency w indexing
+#    #out_ksp_dc = data_consistency_iter(ksp=out_ksp_masked, 
+#    #           ksp_orig=ksp_orig, mask1d=mask1d, alpha=alpha)
+#    
+#    # TODO: build alternative way of enforcing data consistency with a regularizer
+#    # but this is already what we are doing, at least for final layer
+#    loss_ksp = mse(out_ksp_dc, ksp_masked)
+#else:
+#    if c_wmse:
+#        loss_ksp = w_mse(out_ksp_masked, ksp_masked, c_wmse) # loss wrt masked k-space
+#    else:

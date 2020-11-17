@@ -32,13 +32,13 @@ def calc_metrics(img_out, img_gt):
     ssim_ = ssim(np.array([img_out]), np.array([img_gt]))
     psnr_ = psnr(np.array([img_out]), np.array([img_gt]))
     
-    dt = torch.FloatTensor
-    img_out_t = torch.from_numpy(np.array([[img_out]])).type(dt)
-    img_gt_t = torch.from_numpy(np.array([[img_gt]])).type(dt)
-    msssim_ = ms_ssim(img_out_t, img_gt_t, data_range=img_gt_t.max())
-    msssim_ = msssim_.data.cpu().numpy()[np.newaxis][0]
+    #dt = torch.FloatTensor
+    #img_out_t = torch.from_numpy(np.array([[img_out]])).type(dt)
+    #img_gt_t = torch.from_numpy(np.array([[img_gt]])).type(dt)
+    #msssim_ = ms_ssim(img_out_t, img_gt_t, data_range=img_gt_t.max())
+    #msssim_ = msssim_.data.cpu().numpy()[np.newaxis][0]
     
-    return vif_, msssim_, ssim_, psnr_ 
+    return vif_, None, ssim_, psnr_ 
 
 def mse(gt, pred):
     """ Compute Mean Squared Error (MSE) """
