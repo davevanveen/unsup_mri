@@ -9,22 +9,6 @@ import numpy as np
 import torch
 
 
-#def to_tensor(data):
-#    """
-#    Convert numpy array to PyTorch tensor. For complex arrays, the real and imaginary parts
-#    are stacked along the last dimension.
-#
-#    Args:
-#        data (np.array): Input numpy array
-#
-#    Returns:
-#        torch.Tensor: PyTorch version of data
-#    """
-#    if np.iscomplexobj(data):
-#        data = np.stack((data.real, data.imag), axis=-1)
-#    return torch.from_numpy(data)
-
-
 def apply_mask(data, mask_func = None, mask = None, seed=None):
     """
     Subsample given k-space by multiplying with a mask.
@@ -54,37 +38,6 @@ def fft2(arr):
 
 def ifft2(data):
     raise ImportError('ifft2() deprecated. see utils.transform.py for ifft_2d()')
-
-# TODO: delete. data should never be in this format
-#def complex_abs(data):
-#    """
-#    Compute the absolute value of a complex valued input tensor.
-#
-#    Args:
-#        data (torch.Tensor): A complex valued tensor, where the size of the final dimension
-#            should be 2.
-#
-#    Returns:
-#        torch.Tensor: Absolute value of data
-#    """
-#    assert data.size(-1) == 2
-#    return (data ** 2).sum(dim=-1).sqrt()
-
-
-# TODO: replace w updated function
-#def root_sum_of_squares(data, dim=0):
-#    """
-#    Compute the Root Sum of Squares (RSS) transform along a given dimension of a tensor.
-#
-#    Args:
-#        data (torch.Tensor): The input tensor
-#        dim (int): The dimensions along which to apply the RSS transform
-#
-#    Returns:
-#        torch.Tensor: The RSS value
-#    """
-#    return torch.sqrt((data ** 2).sum(dim))
-
 
 def center_crop(data, shape):
     """

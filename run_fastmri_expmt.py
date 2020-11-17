@@ -1,70 +1,84 @@
 import os, sys
+import h5py
 import numpy as np
 import torch
+import matplotlib.pyplot as plt
 
-from utils.data_io import load_h5, load_output, save_output, \
-                            expmt_already_generated
-from utils.transform import np_to_tt, split_complex_vals, recon_ksp_to_img
-from utils.helpers import num_params, get_masks
+sys.path.append('/home/vanveen/ConvDecoder/')
+from utils.data_io import load_h5
+from utils.helpers import num_params
 from include.decoder_conv import init_convdecoder
-from include.mri_helpers import get_scale_factor, get_masked_measurements, \
-                                data_consistency
 from include.fit import fit
+from include.subsample import MaskFunc
 from utils.evaluate import calc_metrics
+from utils.transform import fft_2d, ifft_2d, root_sum_squares, \
+                            reshape_complex_vals_to_adj_channels, \
+                            reshape_adj_channels_to_complex_vals, \
+                            crop_center
 
 if torch.cuda.is_available():
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = True
     dtype = torch.cuda.FloatTensor
-    torch.cuda.set_device(1)
+    torch.cuda.set_device(0)
 else:
     dtype = torch.FloatTensor
 
-
-def run_expmt():
+def get_mask(ksp_orig, center_fractions=[0.07], accelerations=[4]):
+    ''' simplified version of get_masks() in utils.helpers -- return only a 1d mask in torch tensor '''
+        
+    mask_func = MaskFunc(center_fractions=center_fractions, \
+                             accelerations=accelerations)
     
-    #file_id_list = ['1000273', '1000325', '1000464', '1000007', '1000537', '1000818', \
-    #                '1001140', '1001219', '1001338', '1001598', '1001533', '1001798']
-    file_id_list = ['1001533', '1001798'] # two samples w biggest delta b/w ALPHA=0, ALPHA=.25
-    NUM_ITER_LIST = [10000]
-    ALPHA_LIST = [0.125, 0.375]#, 0.25, 0.5, 0.75]
-    DC_STEP = True
+    # note: had to swap dims to be compatible w facebook's MaskFunc class
+    mask_shape = (1, ksp_orig.shape[2], ksp_orig.shape[1])
+    
+    mask = mask_func(mask_shape, seed=0)
 
-    for idx, file_id in enumerate(file_id_list):
+    return mask[0,:,0].type(torch.uint8)
 
-        f, slice_ksp = load_h5(file_id) # load full mri measurements
-        print('file_id: {}'.format(file_id))
+dim = 320
 
-        mask, mask2d, mask1d = get_masks(f, slice_ksp) # load mask + variants, M
-        mask1d_ = torch.from_numpy(np.array(mask1d, dtype=np.uint8)) # for dc step
+file_id_list = ['1000273', '1000325', '1000464', '1000007', '1000537', '1000818', \
+                 '1001140', '1001219']#, '1001338', '1001598', '1001533', '1001798']
+file_id_list.sort()
 
-        for NUM_ITER in NUM_ITER_LIST:
-            for ALPHA in ALPHA_LIST:
+#scale_fac_list = [1, 0.1, 0.05, 0.01]
+scale_fac = [0.1] # set this based on results in 20201112_eval_fastmri_old_v_new.ipynb
 
-                # initialize net, net input seed, and scale slice_ksp accordingly
-                net, net_input, slice_ksp = init_convdecoder(slice_ksp, mask)
-                #img_gt = recon_ksp_to_img(slice_ksp) # must do this after slice_ksp is scaled
+for scale_fac in scale_fac_list:
 
-                if expmt_already_generated(file_id, NUM_ITER, DC_STEP, ALPHA):
-                    continue
+    path_out = '/bmrNAS/people/dvv/out_fastmri/new_pytorch1.7/sf{}/'.format(scale_fac)
 
-                # for dc step - must do this after scaling slice_ksp
-                ksp_orig = np_to_tt(split_complex_vals(slice_ksp))[None, :].type(dtype) #[1,15,640,368,2]
+    for file_id in file_id_list:
 
-                # apply mask to measurements for fitting model
-                ksp_masked, img_masked = get_masked_measurements(slice_ksp, mask)
+        if os.path.exists('{}{}_dc.npy'.format(path_out, file_id)):
+            continue
 
-                net, mse_wrt_ksp, mse_wrt_img = fit(
-                    ksp_masked=ksp_masked, img_masked=img_masked,
-                    net=net, net_input=net_input, mask2d=mask2d,
-                    mask1d=mask1d_, ksp_orig=ksp_orig, DC_STEP=DC_STEP, alpha=ALPHA,
-                    img_ls=None, num_iter=NUM_ITER, dtype=dtype)
+        f, ksp_orig = load_h5(file_id)
+        ksp_orig = torch.from_numpy(ksp_orig)
 
-                img_out = net(net_input.type(dtype))[0] # estimate image \hat{x} = G(\hat{C})
+        mask = get_mask(ksp_orig)
 
-                img_dc, _ = data_consistency(img_out, slice_ksp, mask1d)
-                save_output(img_dc, mse_wrt_ksp, mse_wrt_img, \
-                            file_id, NUM_ITER, DC_STEP, ALPHA)
+        net, net_input, ksp_orig_ = init_convdecoder(ksp_orig, mask)
 
-if __name__ == '__main__':
-    run_expmt()
+        ksp_masked = scale_fac * ksp_orig_ * mask # previously had multiplier of 0.5
+        img_masked = ifft_2d(ksp_masked)
+
+        net, mse_wrt_ksp, mse_wrt_img = fit(
+            ksp_masked=ksp_masked, img_masked=img_masked,
+            net=net, net_input=net_input, mask2d=mask, num_iter=10000)
+
+        img_out = net(net_input.type(dtype))[0]
+        img_out = reshape_adj_channels_to_complex_vals(img_out)
+        ksp_est = fft_2d(img_out)
+        ksp_dc = torch.where(mask, ksp_masked, ksp_est)
+
+        img_est = crop_center(root_sum_squares(ifft_2d(ksp_est)).detach(), dim, dim)
+        img_dc = crop_center(root_sum_squares(ifft_2d(ksp_dc)).detach(), dim, dim)
+        img_gt = crop_center(root_sum_squares(ifft_2d(ksp_orig)), dim, dim)
+        print('note: use unscaled ksp_orig to make gt -- different from old fastmri processing')
+
+        np.save('{}{}_est.npy'.format(path_out, file_id), img_est)
+        np.save('{}{}_dc.npy'.format(path_out, file_id), img_dc)
+        np.save('{}{}_gt.npy'.format(path_out, file_id), img_gt)
