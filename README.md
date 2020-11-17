@@ -1,10 +1,67 @@
-# this codebase is based on the original run on pytorch==1.5, but has been "minimally" modified to run on pytorch==1.7
+# ConvDecoder
 
-- main difference between pt==1.5 and pt==1.7 is how the fft is processed - i.e. pt==1.5 requires shape (nc,x,y,2) w real/complex channels separate in last dimension, while pt==1.7 requires shape (nc,x,y) of complex dtype
-- in order to revert back, just need to update how fft is performed
-	- ifft is fine b/c using a deprecated function, but fft must be manually edited
-- see `utils.transfrom.py` and comment out extra dim reshape code in fft_2d(), i.e. get it to mirror ifft_2d(). also need to call torch.fft() instead of torch.fft.fftn()
-- maybe there are other changes i'm missing?
+<br>
+This repository provides code for reproducing the results in the paper:
 
+**''Can Un-trained Neural Networks Compete with Trained Neural Networks at Image Reconstruction?,''** by Mohammad Zalbagi Darestani and Reinhard Heckel
 
-### see `20201112_eval_fastmri_old_v_new.ipynb` in dev branch for further experimental details
+This code is adapted from original work by: Mohammad Zalbagi Darestani (mz35@rice.edu) and Reinhard Heckel (rh43@rice.edu)
+***
+
+The aim of the code is to investigate the capability of different un-trained methods, including our proposed ConvDecoder, for the MRI acceleration problem. The task is to recover a fine image from a few measurements. In this regard, we specifically provide experiments to: 
+
+(i) compare ConvDecoder with U-net, a standard popular trained method for medical imaging, on the FastMRI validation set (**ConvDecoder_vs_Unet_multicoil.ipynb**), 
+
+(ii) compare ConvDecoder with Deep Decoder and Deep Image Prior, two popular un-trained methods for standard inverse problems, again, on the FastMRI dataset (**ConvDecoder_vs_DIP_vs_DD_multicoil.ipynb**),
+
+(iii) compare ConvDecoder with U-net on an out-of-distribution sample to demonstrate the robustness of un-trained methods toward a shift in the distribution at the inference time (**robustness_to_distribution_shift.ipynb**), 
+
+(iv) and finally, visualize the output of ConvDecoder layers to illustrate how ConvDecoder, as a convolutional generator, finds a fine representation of an image (**visualize_layers_singlecoil.ipynb**).
+
+### List of contents
+* [Setup and installation](#Setup-and-installation) <br>
+* [Dataset](#Dataset) <br>
+* [Running the code](#Running-the-code) <br>
+* [References](#References) <br>
+* [License](#License)
+***
+
+# Setup and installation
+On a normal computer, it takes aproximately 10 minutes to install all the required softwares and packages.
+
+### OS requirements
+The code has been tested on the following operating system:
+
+	Linux: Ubuntu 16.04.5
+
+### Python dependencies
+To reproduce the results by running each of the jupyter notebooks, the following softwares are required. Assuming the experiment is being performed in a docker container or a linux machine, the following libraries and packages need to be installed.
+
+        apt-get update
+        apt-get install python3.6     # --> or any other system-specific command for installing python3 on your system.
+		pip install jupyter
+		pip install numpy
+		pip install matplotlib
+		pip install sigpy
+		pip install h5py
+		pip install scikit-image
+		pip install runstats
+		pip install pytorch_msssim
+		pip install pytorch_lightning
+		pip install test-tube
+		pip install Pillow
+		
+If pip does not come with the version of python you installed, install pip manually from [here](https://ehmatthes.github.io/pcc/chapter_12/installing_pip.html). Also, install pytorch from [here](https://pytorch.org/) according to your system specifications. 
+
+# Dataset
+All the experiments are performed on the [FastMRI](https://fastmri.org/dataset) dataset--except the experiment for measuring the robustness toward out-of-distribution samples which is performed on the cameraman test image.
+
+# Running the code
+You may simply clone this repository and run each notebook to reproduce the results. **Note** that you need to download the [FastMRI](https://fastmri.org/dataset) dataset and change the **data path** (when loading the measurements) in each notebook accordingly, provided that you intend to run the code for MRI data (for MRI data, all of our experiments are performed on the validation sets--either single-coil or multi-coil).
+
+# References
+Code for training the U-net is taken from [here](https://github.com/facebookresearch/fastMRI/tree/master/models/unet). <br>
+Code for Deep Decoder and Deep Image Prior architectures are taken from [repo1](https://github.com/reinhardh/supplement_deep_decoder) and [repo2](https://github.com/DmitryUlyanov/deep-image-prior), respectively.
+
+# License
+This project is covered by **Apache 2.0 License**.
