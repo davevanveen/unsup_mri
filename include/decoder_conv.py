@@ -15,113 +15,90 @@ def add_module(self, module):
 torch.nn.Module.add = add_module
 
 class Conv_Model(nn.Module):
-    def __init__(self, num_layers, strides, num_channels, out_depth, hidden_size, upsample_mode, act_fun, bn_affine=True, bias=False, need_last=False, kernel_size=3):
-        super(Conv_Model, self).__init__()
+    def __init__(self, num_layers, num_channels, out_depth, hidden_size, 
+                 upsample_mode='nearest', act_fun=nn.ReLU(), bn_affine=True, 
+                 bias=False, kernel_size=3):
         
+        super(Conv_Model, self).__init__()
         self.num_layers = num_layers
         self.hidden_size = hidden_size
         self.upsample_mode = upsample_mode
         self.act_fun = act_fun
-        self.layer_inds = [] # record index of the layers that generate output in the sequential mode (after each BatchNorm)
-        self.combinations = None # this holds input of the last layer which is upsampled versions of previous layers
-        #self.dtype = dtype
+        self.layer_inds = [] # indices of layers that generate output in the sequential mode (after each batchnorm)
+        self.combinations = None # holds input of the last layer which is upsampled versions of previous layers
 
-        cntr = 1
-        #torch.set_default_tensor_type(dtype)
+        # define layer types
+        conv_layer = nn.Conv2d(num_channels, num_channels, kernel_size, \
+                         stride=1, padding=1, bias=bias)
+        batch_norm = nn.BatchNorm2d(num_channels, affine=bn_affine)
+        channels_to_img = nn.Conv2d(num_channels, out_depth, 1, 1, padding=0, bias=bias)
+
+
+        # first (n-1) layers - each layer is upsampling, convoltuion, relu, batchnorm
         net1 = nn.Sequential()
+        
+        idx_layer = 1
         for i in range(num_layers-1):
             
-            net1.add(nn.Upsample(size=hidden_size[i], mode=upsample_mode))#,align_corners=True))
-            cntr += 1
-            
-            conv = nn.Conv2d(num_channels, num_channels, kernel_size, strides[i], padding=(kernel_size-1)//2, bias=bias)
-            net1.add(conv)
-            cntr += 1
-            
+            net1.add(nn.Upsample(size=hidden_size[i], mode=upsample_mode))
+            net1.add(conv_layer)
             net1.add(act_fun)
-            cntr += 1
-            
-            net1.add(nn.BatchNorm2d( num_channels, affine=bn_affine))
-            if i != num_layers - 2: # penultimate layer will automatically be concatenated if skip connection option is chosen
-                self.layer_inds.append(cntr)
-            cntr += 1
+            idx_layer += 3 # added three layers 
+            net1.add(batch_norm)
 
+            if i != num_layers - 2: # penultimate layer will be concat'ed if skip connection option is chosen
+                self.layer_inds.append(idx_layer)
+            idx_layer += 1
+
+        
+        # last layer, i.e. convolution, relu, batchnorm, channels_to_img
         net2 = nn.Sequential()
+        net2.add(conv_layer)
+        net2.add(act_fun)
+        net2.add(batch_norm)
+        net2.add(channels_to_img)
+
+        self.net1 = net1 
+        self.net2 = net2 
         
-        nic = num_channels
-        
-        if need_last: # orignal code default False, but we call it True
-            net2.add( nn.Conv2d(nic, num_channels, kernel_size, strides[i], padding=(kernel_size-1)//2, bias=bias) )
-            net2.add(act_fun)
-            net2.add(nn.BatchNorm2d( num_channels, affine=bn_affine))
-            nic = num_channels
-            
-        net2.add(nn.Conv2d(nic, out_depth, 1, 1, padding=0, bias=bias))
-        
-        self.net1 = net1 # actual convdecoder network
-        self.net2 = net2 # (default seting) one-layer net converting number of channels
-        
-    def forward(self, x, scale_out=1):
-        ''' run input thru net1 (convdecoder) then net2 (converts number of channels
+    def forward(self, x):
+        ''' run input thru net1 (convdecoder) then net2 (converts number of channels)
         provide options for skip connections (default False) and scaling factors (default 1) '''
+
         out1 = self.net1(x)
         self.combinations = copy(out1)
         out2 = self.net2(out1)
-        return out2*scale_out
-    def up_sample(self,img):
-        ''' single upsampling layer '''
-        samp_block = nn.Upsample(size=self.hidden_size[-1], mode=self.upsample_mode)#,align_corners=True)
-        img = samp_block(img)
-        return img
+        
+        return out2
+
 
 def convdecoder(
         in_size, #default [16,16]
-        out_size,#default [256,256]
+        out_size, #default [256,256]
         out_depth, #default 3
         num_layers, #default 6
-        strides, #default [1]*6,
         num_channels, #default 64
-        kernel_size=3,
-        upsample_mode='nearest', #default 'bilinear', 
-        act_fun=nn.ReLU(), # nn.LeakyReLU(0.2, inplace=True) 
-        bn_affine = True,
-        nonlin_scales=False,
-        bias=False,
-        need_last=True, #False,
         ):
     
     ''' determine how to scale the network based on specified input size and output size
         where output hidden_size is size of each hidden layer of network
         e.g. input [8,4] and output [640,368] would yield hidden_size of:
             [(15, 8), (28, 15), (53, 28), (98, 53), (183, 102), (343, 193), (640, 368)]
-        provide option for nonlinear scaling (default False) and different activation functions
         call Conv_Model(...), defined above 
+        note: original codehad option for non-linear scaling and other args '''
 
-        Note: I removed unnecessary args, e.g. skips, intermeds, pad, etc. 
-              decoder_conv_old.py for original code'''
-
-    # scaling factor layer-to-layer in x and y direction
-    # e.g. (scale_x, scale_y) = (1.87, 1.91)
-    scale_x,scale_y = (out_size[0]/in_size[0])**(1./(num_layers-1)), (out_size[1]/in_size[1])**(1./(num_layers-1))
-    
-    if nonlin_scales: # default false
-        xscales = np.ceil( np.linspace(scale_x * in_size[0],out_size[0],num_layers-1) )
-        yscales = np.ceil( np.linspace(scale_y * in_size[1],out_size[1],num_layers-1) )
-        hidden_size = [(int(x),int(y)) for (x,y) in zip(xscales,yscales)]
-    else:
-        hidden_size = [(int(np.ceil(scale_x**n * in_size[0])),
-                        int(np.ceil(scale_y**n * in_size[1]))) for n in range(1, (num_layers-1))] + [out_size]
+    # scaling factor layer-to-layer in x and y direction e.g. (scale_x, scale_y) = (1.87, 1.91)
+    scale_x, scale_y = (out_size[0]/in_size[0])**(1./(num_layers-1)), \
+                       (out_size[1]/in_size[1])**(1./(num_layers-1))
+   
+    # list of sizes for intermediate layers in [x,y] 
+    hidden_size = [(int(np.ceil(scale_x**n * in_size[0])),
+                    int(np.ceil(scale_y**n * in_size[1]))) for n in range(1, (num_layers-1))] + [out_size]
     #print(hidden_size)
    
     torch.manual_seed(0)
-    model = Conv_Model(num_layers, strides, num_channels, out_depth, hidden_size,
-                         upsample_mode=upsample_mode, 
-                         act_fun=act_fun,
-                         bn_affine=bn_affine,
-                         bias=bias,
-                         need_last=need_last,
-                         kernel_size=kernel_size)#,
-                         #dtype=dtype)
+    model = Conv_Model(num_layers, num_channels, out_depth, hidden_size)
+
     return model
 
 def init_convdecoder(ksp_orig, mask, \
@@ -138,10 +115,9 @@ def init_convdecoder(ksp_orig, mask, \
 
     out_size = ksp_orig.shape[1:] # shape of (x,y) image slice, e.g. (640, 368)
     out_depth = ksp_orig.shape[0]*2 # 2*n_c, i.e. 2*15=30 if multi-coil
-    strides = [1]*(num_layers-1)
 
-    net = convdecoder(in_size, out_size, out_depth, num_layers, \
-                      strides, num_channels).type(dtype)
+    net = convdecoder(in_size, out_size, out_depth, \
+                      num_layers, num_channels).type(dtype)
 #     print('# parameters of ConvDecoder:',num_params(net))
 
     net_input = get_net_input(num_channels, in_size)
