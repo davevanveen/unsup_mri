@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
+import PIL
 from copy import copy
 from torch.autograd import Variable
 
