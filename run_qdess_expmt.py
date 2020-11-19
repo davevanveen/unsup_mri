@@ -9,7 +9,7 @@ from sigpy.mri.samp import poisson
 import torch
 
 sys.path.append('/home/vanveen/ConvDecoder/')
-from utils.helpers import num_params#, get_masks
+from utils.data_io import num_params
 from include.decoder_conv import init_convdecoder
 from include.fit import fit
 from utils.evaluate import calc_metrics
@@ -56,7 +56,7 @@ def run_expmt():
             path_out = '/bmrNAS/people/dvv/out_qdess/accel_{}x/'.format(ACCEL)
             
             # original masks created w central region 32x32 forced to 1's
-            mask = torch.from_numpy(np.load('ipynb/mask_poisson_disc_{}x.npy'.format(ACCEL)))
+            mask = torch.from_numpy(np.load('ipynb/masks/mask_poisson_disc_{}x.npy'.format(ACCEL)))
 
             # initialize network
             net, net_input, ksp_orig_ = init_convdecoder(ksp_orig, mask)

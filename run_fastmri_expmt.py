@@ -5,8 +5,7 @@ import torch
 import matplotlib.pyplot as plt
 
 sys.path.append('/home/vanveen/ConvDecoder/')
-from utils.data_io import load_h5
-from utils.helpers import num_params
+from utils.data_io import load_h5, get_mask, num_params
 from include.decoder_conv import init_convdecoder
 from include.fit import fit
 from include.subsample import MaskFunc
@@ -24,18 +23,6 @@ if torch.cuda.is_available():
 else:
     dtype = torch.FloatTensor
 
-def get_mask(ksp_orig, center_fractions=[0.07], accelerations=[4]):
-    ''' simplified version of get_masks() in utils.helpers -- return only a 1d mask in torch tensor '''
-        
-    mask_func = MaskFunc(center_fractions=center_fractions, \
-                             accelerations=accelerations)
-    
-    # note: had to swap dims to be compatible w facebook's MaskFunc class
-    mask_shape = (1, ksp_orig.shape[2], ksp_orig.shape[1])
-    
-    mask = mask_func(mask_shape, seed=0)
-
-    return mask[0,:,0].type(torch.uint8)
 
 dim = 320
 
