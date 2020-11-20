@@ -76,7 +76,7 @@ def init_convdecoder(ksp_orig, mask, \
     scale_factor = get_scale_factor(net, net_input, ksp_orig)
     ksp_orig_ = ksp_orig * scale_factor
 
-    return net, net_input, ksp_orig_
+    return net, net_input, ksp_orig_, hidden_size
 
 ###### below contains helper functions for init_convdecoder() ######
 def get_hidden_size(in_size, out_size, num_layers):
