@@ -12,12 +12,11 @@ exp_list = [-3, -4, -5]
 ALPHA_FM_LIST = [10**e for e in exp_list]
 #ALPHA_FM_LIST = [0] + ALPHA_FM_LIST
 
-NUM_ITER = 1
 ITER_START_FM_LOSS = [0, int(0.5*NUM_ITER), int(0.8*NUM_ITER)]
 
 WEIGHT_METHODS = ['all', 'early', 'late']
 DOWNSAMP_METHODS = ['bicubic', 'bilinear', 'nearest']
-NUM_TRIALS = 99
+NUM_TRIALS = 81
 
 def init_parser():
 
