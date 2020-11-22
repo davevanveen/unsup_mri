@@ -37,9 +37,9 @@ def train(args):
     DIM = 320
     SCALE_FAC = 0.1
 
-    #file_id_list = ['1000273', '1000325', '1000464'] # original three samples
-    file_id_list = ['1000537', '1000818', '1001140', '1001219', \
-                    '1001338', '1001598', '1001533', '1001798']
+    file_id_list = ['1000273', '1000325', '1000464'] # original three samples
+    #file_id_list = ['1000537', '1000818', '1001140', '1001219', \
+    #                '1001338', '1001598', '1001533', '1001798']
     file_id_list.sort()
 
     path_out = '/bmrNAS/people/dvv/out_fastmri/expmt_fm_loss/'

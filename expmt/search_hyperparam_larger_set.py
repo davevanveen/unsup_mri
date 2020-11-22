@@ -2,21 +2,22 @@ from test_tube import Experiment
 from test_tube import HyperOptArgumentParser
 import datetime
 import pytz
+import json
 
-from train import train
+from train_larger_set import train
 
 NUM_ITER = 2000
-GPU_ID = 3
+GPU_ID = 2 
 
-exp_list = [-3, -4, -5]
+exp_list = [-1, -2]#, -3, -4, -5]
 ALPHA_FM_LIST = [10**e for e in exp_list]
-#ALPHA_FM_LIST = [0] + ALPHA_FM_LIST
+ALPHA_FM_LIST = [0] + ALPHA_FM_LIST
 
 ITER_START_FM_LOSS = [0, int(0.5*NUM_ITER), int(0.8*NUM_ITER)]
 
 WEIGHT_METHODS = ['all', 'early', 'late']
 DOWNSAMP_METHODS = ['bicubic', 'bilinear', 'nearest']
-NUM_TRIALS = 81
+NUM_TRIALS = 1
 
 def init_parser():
 
@@ -45,6 +46,9 @@ def init_parser():
     parser.add_argument('--csv_fn', type=str, default=csv_fn,
                         help='csv filename for results')
 
+    parser.add_argument('--trial_id', type=str, default=None,
+                        help='trial_id for unique hparam configs')
+
     parser.add_argument('--gpu_id', type=int, default=GPU_ID,
                         help='gpu to use for training')
 
@@ -71,10 +75,24 @@ def init_csv():
 
     return csv_fn
 
-
+# fix hparams according to loaded json
 if __name__ == '__main__':
 
     hparams = init_parser()
 
-    for hparam_trial in hparams.trials(NUM_TRIALS):
-        train(hparam_trial)
+    json_path = 'results/trials_best_20201121.json'
+    with open(json_path, 'r') as f:
+        dict_ = json.load(f)
+
+    for key in dict_:
+
+        for hparam_trial in hparams.trials(NUM_TRIALS):
+           
+            hparam_trial.trial_id = dict_[key]['trial_id']
+            hparam_trial.alpha_fm = dict_[key]['alpha_fm']
+            hparam_trial.num_iter = dict_[key]['num_iter']
+            hparam_trial.iter_start_fm_loss = dict_[key]['iter_start_fm_loss']
+            hparam_trial.weight_method = dict_[key]['weight_method']
+            hparam_trial.downsamp_method = dict_[key]['downsamp_method']
+
+            train(hparam_trial)

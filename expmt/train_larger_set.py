@@ -13,14 +13,6 @@ from utils.transform import fft_2d, ifft_2d, root_sum_squares, \
                             crop_center
 from utils.evaluate import calc_metrics
 
-#if torch.cuda.is_available():
-#    torch.backends.cudnn.enabled = True
-#    torch.backends.cudnn.benchmark = True
-#    dtype = torch.cuda.FloatTensor
-#    torch.cuda.set_device(0)
-#else:
-#    dtype = torch.FloatTensor
-
 
 def train(args):
 
