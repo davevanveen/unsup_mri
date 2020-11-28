@@ -99,12 +99,9 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d, args, \
             #if DC_STEP: # ... see code inlay at bottom of file
             loss_ksp = mse(out_ksp_masked, ksp_masked)
             
-            if i >= args.iter_start_fm_loss:
-                loss_feat_maps = get_loss_feat_maps(feat_map_list, ksp_m_down_list, 
-                                                    feat_map_mask_list, w_pix_list)
-                loss_total = loss_ksp + args.alpha_fm * loss_feat_maps
-            else:
-                loss_total = loss_ksp
+            loss_feat_maps = get_loss_feat_maps(feat_map_list, ksp_m_down_list, 
+                                                feat_map_mask_list, w_pix_list)
+            loss_total = loss_ksp + args.alpha_fm * loss_feat_maps
 
             loss_total.backward(retain_graph=False)
 

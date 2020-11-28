@@ -13,14 +13,6 @@ from utils.transform import fft_2d, ifft_2d, root_sum_squares, \
                             crop_center
 from utils.evaluate import calc_metrics
 
-#if torch.cuda.is_available():
-#    torch.backends.cudnn.enabled = True
-#    torch.backends.cudnn.benchmark = True
-#    dtype = torch.cuda.FloatTensor
-#    torch.cuda.set_device(0)
-#else:
-#    dtype = torch.FloatTensor
-
 
 def train(args):
 
@@ -37,8 +29,8 @@ def train(args):
     DIM = 320
     SCALE_FAC = 0.1
 
-    #file_id_list = ['1000273', '1000325', '1000464'] # original three samples
-    file_id_list = ['1000537', '1000818', '1001140', '1001219', \
+    file_id_list = ['1000273', '1000325', '1000464', \
+                    '1000537', '1000818', '1001140', '1001219', \
                     '1001338', '1001598', '1001533', '1001798']
     file_id_list.sort()
 

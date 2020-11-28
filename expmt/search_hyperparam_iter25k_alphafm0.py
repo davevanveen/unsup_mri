@@ -4,20 +4,13 @@ import datetime
 import pytz
 import json
 
-from train_orig_three import train
+from train import train
 
-NUM_ITER = 10000
-GPU_ID = 3 
-
-exp_list = [-1, -2]#, -3, -4, -5]
-ALPHA_FM_LIST = [10**e for e in exp_list]
-ALPHA_FM_LIST = [0] + ALPHA_FM_LIST
-
-ITER_START_FM_LOSS = [0, int(0.5*NUM_ITER), int(0.8*NUM_ITER)]
-
-WEIGHT_METHODS = ['all', 'early', 'late']
-DOWNSAMP_METHODS = ['bicubic', 'bilinear', 'nearest']
+NUM_ITER = 25000
+GPU_ID = 2 
 NUM_TRIALS = 1
+
+ALPHA_FM_LIST = [0] 
 
 def init_parser():
 
@@ -27,16 +20,10 @@ def init_parser():
                     options=ALPHA_FM_LIST, tunable=True, 
                     help='weight on feat_map loss')
 
-    parser.opt_list('--iter_start_fm_loss', type=int, default=0,
-                    options=ITER_START_FM_LOSS, tunable=True,
-                    help='iteration at which to incorporate fm loss')
-
-    parser.opt_list('--weight_method', type=str, default='all',
-                    options=WEIGHT_METHODS, tunable=True,
+    parser.add_argument('--weight_method', type=str, default='all',
                     help='fm loss on early, later, or all net layers')
 
-    parser.opt_list('--downsamp_method', type=str, default='bicubic',
-                    options=DOWNSAMP_METHODS, tunable=True,
+    parser.add_argument('--downsamp_method', type=str, default='bilinear',
                     help='interpolation method on ksp_masked')
 
     parser.add_argument('--num_iter', type=int, default=NUM_ITER,
@@ -61,8 +48,7 @@ def init_csv():
     ''' create new csv file w header columns for this run '''
     
     cols = ['trial_id', 'file_id', 'ssim_dc', 'psnr_dc', 'ssim_est', \
-            'psnr_est', 'alpha_fm', 'num_iter', \
-            'iter_start_fm_loss', 'weight_method', 'downsamp_method']
+            'psnr_est', 'alpha_fm', 'num_iter', 'weight_method', 'downsamp_method']
 
     ct = str(datetime.datetime.now(tz=pytz.timezone('US/Pacific')))
     timestamp = ct.split('.')[0].replace('-', '')\
@@ -75,22 +61,13 @@ def init_csv():
 
     return csv_fn
 
-# fix hparams according to loaded json
+# default way of using this script
 if __name__ == '__main__':
 
     hparams = init_parser()
 
-    json_path = 'results/trials_best_20201121.json'
-    with open(json_path, 'r') as f:
-        dict_ = json.load(f)
+    for hparam_trial in hparams.trials(NUM_TRIALS):
 
-    for key in dict_:
+        hparam_trial.trial_id = '0000_25k'
 
-        for hparam_trial in hparams.trials(NUM_TRIALS):
-           
-            hparam_trial.alpha_fm = dict_[key]['alpha_fm']
-            hparam_trial.iter_start_fm_loss = dict_[key]['iter_start_fm_loss']
-            hparam_trial.weight_method = dict_[key]['weight_method']
-            hparam_trial.downsamp_method = dict_[key]['downsamp_method']
-
-            train(hparam_trial)
+        train(hparam_trial)
