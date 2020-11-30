@@ -21,7 +21,7 @@ if torch.cuda.is_available():
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = True
     dtype = torch.cuda.FloatTensor
-    torch.cuda.set_device(1)
+    torch.cuda.set_device(3)
 
 
 def run_expmt():
@@ -32,7 +32,7 @@ def run_expmt():
     NUM_SAMPS = 10 # number of samples to recon
        
     NUM_ITER = 10000
-    ACCEL_LIST = [12]
+    ACCEL_LIST = [4, 6, 8]
 
     for fn in files[:NUM_SAMPS]:
 
@@ -45,7 +45,7 @@ def run_expmt():
             f.close()
             continue
         f.close()
-        ksp_vol = ksp[:,:,:,0,:].permute(3,0,1,2) # get echo1, reshape to be (nc, kx, ky, kz)
+        ksp_vol = ksp[:,:,:,1,:].permute(3,0,1,2) # get echo2, reshape to be (nc, kx, ky, kz)
 
         # get central slice in kx, i.e. axial plane b/c we undersample in (ky, kz)
         idx_kx = ksp_vol.shape[1] // 2
@@ -59,7 +59,7 @@ def run_expmt():
             mask = torch.from_numpy(np.load('ipynb/masks/mask_poisson_disc_{}x.npy'.format(ACCEL)))
 
             # initialize network
-            net, net_input, ksp_orig_ = init_convdecoder(ksp_orig, mask)
+            net, net_input, ksp_orig_, _ = init_convdecoder(ksp_orig, mask)
 
             # apply mask after rescaling k-space. want complex tensors dim (nc, ky, kz)
             ksp_masked = ksp_orig_ * mask
@@ -81,7 +81,7 @@ def run_expmt():
             img_gt = root_sum_squares(ifft_2d(ksp_orig))
 
             # save results
-            samp = fn.split('.h5')[0] 
+            samp = fn.split('.h5')[0] + '_echo2' 
             np.save('{}{}_dc.npy'.format(path_out, samp), img_dc)
             np.save('{}{}_gt.npy'.format(path_out, samp), img_gt)
 
