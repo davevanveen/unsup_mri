@@ -77,7 +77,7 @@ def train(args):
         
         # get output + params, write to new line in csv
         line = [args.trial_id, file_id, ssim_dc, psnr_dc, ssim_est, psnr_est, \
-                args.alpha_fm, args.num_iter, args.iter_start_fm_loss, \
+                args.alpha_fm, args.num_iter, \
                 args.weight_method, args.downsamp_method]
         line = [str(x) for x in line] # convert all entries to str
         f = open(args.csv_fn, 'a')
