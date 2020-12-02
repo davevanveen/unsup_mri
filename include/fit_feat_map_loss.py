@@ -6,6 +6,7 @@ import os, sys
 import PIL
 from PIL import Image
 import torchvision
+import time
 
 from .transforms import *
 sys.path.append('/home/vanveen/ConvDecoder/')
@@ -87,6 +88,9 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d, args, \
                         get_meta_for_feat_map_loss(hidden_size, ksp_masked,
                                                    downsamp_method=args.downsamp_method,
                                                    weight_method=args.weight_method)
+    print('commented out fm code')
+    torch.cuda.synchronize()
+    t0 = time.time()
 
     for i in range(args.num_iter):
         def closure(): # execute this for each iteration (gradient step)
@@ -104,6 +108,7 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d, args, \
             loss_total = loss_ksp + args.alpha_fm * loss_feat_maps
 
             loss_total.backward(retain_graph=False)
+            #loss_ksp.backward(retain_graph=False)
 
             # store loss over each iteration
             mse_wrt_ksp[i] = loss_ksp.data.cpu().numpy()
@@ -119,6 +124,10 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d, args, \
         if best_mse > 1.005*loss_val:
             best_mse = loss_val
             best_net = copy.deepcopy(net)
+
+    torch.cuda.synchronize()
+    t_per_i = (time.time() - t0) / args.num_iter
+    print('{} s/iter for {} iter'.format(t_per_i, args.num_iter))
 
     return best_net, mse_wrt_ksp, mse_wrt_img
 

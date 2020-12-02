@@ -3,6 +3,7 @@ import torch
 import copy
 import numpy as np
 import os, sys
+import time
 
 #from .helpers import *
 from .mri_helpers import data_consistency_iter
@@ -91,6 +92,9 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
     img_masked = reshape_complex_vals_to_adj_channels(img_masked)[None,:].cuda()
     mask2d = mask2d.cuda()
 
+    torch.cuda.synchronize()
+    t0 = time.time()
+
     for i in range(num_iter):
         def closure(): # execute this for each iteration (gradient step)
             
@@ -118,7 +122,11 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
         if best_mse > 1.005*loss_val:
             best_mse = loss_val
             best_net = copy.deepcopy(net)
-    
+   
+    torch.cuda.synchronize()
+    t_per_i = (t1 - time.time()) / float(num_iter)
+    print('{} s / iteration for {} iter'.format(t_per_i, num_iter))
+
     return best_net, mse_wrt_ksp, mse_wrt_img
 
 
@@ -126,6 +134,7 @@ def forwardm(img, mask):
     ''' convert img --> ksp (must be complex for fft), apply mask
         input, output should have dim [2*nc,x,y] '''
 
+    print(img.shape)
     img = reshape_adj_channels_to_complex_vals(img[0]) 
     ksp = fft_2d(img).cuda()
     ksp_masked_ = ksp * mask

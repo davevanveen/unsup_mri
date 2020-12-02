@@ -30,7 +30,6 @@ def load_h5(file_id):
     f = h5py.File(filename, 'r')
     #print('file_id {} w ksp shape (num_slices, num_coils, x, y): {}'.format( \
     #                                            file_id, f['kspace'].shape))
-
     slice_idx = f['kspace'].shape[0] // 2
     slice_ksp = f['kspace'][slice_idx]
 

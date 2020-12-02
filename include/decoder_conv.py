@@ -30,7 +30,7 @@ class Conv_Model(nn.Module):
                          stride=1, padding=1, bias=bias)
         self.bn = nn.BatchNorm2d(num_channels, affine=True)
         self.collapse_channels = nn.Conv2d(num_channels, out_depth, 1, 1, padding=0, bias=bias)
-        
+    
         self.upsamp_list = []
         for size in hidden_size:
             self.upsamp_list.append(nn.Upsample(size=size, mode=upsample_mode))

@@ -3,6 +3,7 @@ import h5py
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
+import time
 
 sys.path.append('/home/vanveen/ConvDecoder/')
 from utils.data_io import load_h5, get_mask, num_params
@@ -23,7 +24,6 @@ if torch.cuda.is_available():
 else:
     dtype = torch.FloatTensor
 
-
 dim = 320
 
 file_id_list = ['1000273', '1000325', '1000464', '1000007', '1000537', '1000818', \
@@ -31,7 +31,9 @@ file_id_list = ['1000273', '1000325', '1000464', '1000007', '1000537', '1000818'
 file_id_list.sort()
 
 #scale_fac_list = [1, 0.1, 0.05, 0.01]
-scale_fac = [0.1] # set this based on results in 20201112_eval_fastmri_old_v_new.ipynb
+scale_fac_list = [0.1] # set this based on results in 20201112_eval_fastmri_old_v_new.ipynb
+
+NUM_ITER = 100
 
 for scale_fac in scale_fac_list:
 
@@ -39,22 +41,23 @@ for scale_fac in scale_fac_list:
 
     for file_id in file_id_list:
 
-        if os.path.exists('{}{}_dc.npy'.format(path_out, file_id)):
-            continue
+        #if os.path.exists('{}{}_dc.npy'.format(path_out, file_id)):
+        #    continue
 
         f, ksp_orig = load_h5(file_id)
         ksp_orig = torch.from_numpy(ksp_orig)
+        print(ksp_orig.shape)
 
         mask = get_mask(ksp_orig)
 
-        net, net_input, ksp_orig_ = init_convdecoder(ksp_orig, mask)
+        net, net_input, ksp_orig_, _ = init_convdecoder(ksp_orig, mask)
 
         ksp_masked = scale_fac * ksp_orig_ * mask # previously had multiplier of 0.5
         img_masked = ifft_2d(ksp_masked)
 
         net, mse_wrt_ksp, mse_wrt_img = fit(
             ksp_masked=ksp_masked, img_masked=img_masked,
-            net=net, net_input=net_input, mask2d=mask, num_iter=10000)
+            net=net, net_input=net_input, mask2d=mask, num_iter=NUM_ITER)
 
         img_out = net(net_input.type(dtype))[0]
         img_out = reshape_adj_channels_to_complex_vals(img_out)
@@ -64,8 +67,8 @@ for scale_fac in scale_fac_list:
         img_est = crop_center(root_sum_squares(ifft_2d(ksp_est)).detach(), dim, dim)
         img_dc = crop_center(root_sum_squares(ifft_2d(ksp_dc)).detach(), dim, dim)
         img_gt = crop_center(root_sum_squares(ifft_2d(ksp_orig)), dim, dim)
-        print('note: use unscaled ksp_orig to make gt -- different from old fastmri processing')
+        #print('note: use unscaled ksp_orig to make gt -- different from old fastmri processing')
 
-        np.save('{}{}_est.npy'.format(path_out, file_id), img_est)
-        np.save('{}{}_dc.npy'.format(path_out, file_id), img_dc)
-        np.save('{}{}_gt.npy'.format(path_out, file_id), img_gt)
+        #np.save('{}{}_est.npy'.format(path_out, file_id), img_est)
+        #np.save('{}{}_dc.npy'.format(path_out, file_id), img_dc)
+        #np.save('{}{}_gt.npy'.format(path_out, file_id), img_gt)
