@@ -80,11 +80,6 @@ def run_expmt():
             img_dc = root_sum_squares(ifft_2d(ksp_dc)).detach()
             img_gt = root_sum_squares(ifft_2d(ksp_orig))
 
-            # save results
-            #samp = fn.split('.h5')[0] + '_echo2' 
-            #np.save('{}{}_dc.npy'.format(path_out, samp), img_dc)
-            #np.save('{}{}_gt.npy'.format(path_out, samp), img_gt)
-
             print('recon {} w shape {}'.format(samp, ksp_vol.shape)) 
 
     return
