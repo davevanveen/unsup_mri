@@ -1,6 +1,27 @@
 import os, sys
 import numpy as np
+import torch
 import h5py
+
+from include.subsample import MaskFunc
+
+
+def get_mask(ksp_orig, center_fractions=[0.07], accelerations=[4]):
+    ''' simplified version of get_masks() in utils.helpers -- return only a 1d mask in torch tensor '''
+
+    mask_func = MaskFunc(center_fractions=center_fractions, \
+                             accelerations=accelerations)
+
+    # note: had to swap dims to be compatible w facebook's MaskFunc class
+    mask_shape = (1, ksp_orig.shape[2], ksp_orig.shape[1])
+
+    mask = mask_func(mask_shape, seed=0)
+
+    return mask[0,:,0].type(torch.uint8)
+
+def num_params(net):
+    ''' given network, return total number of params '''
+    return sum([np.prod(list(p.size())) for p in net.parameters()]);
 
 def load_h5(file_id):
     ''' given file_id, return the h5 file and central slice '''
@@ -9,7 +30,6 @@ def load_h5(file_id):
     f = h5py.File(filename, 'r')
     #print('file_id {} w ksp shape (num_slices, num_coils, x, y): {}'.format( \
     #                                            file_id, f['kspace'].shape))
-
     slice_idx = f['kspace'].shape[0] // 2
     slice_ksp = f['kspace'][slice_idx]
 
