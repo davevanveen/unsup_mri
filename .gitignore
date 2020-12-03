@@ -1,5 +1,6 @@
 *.pyc
 .ipynb_checkpoints/
+ipynb/old/
 *.npy
 *.png
 *.pdf
@@ -7,3 +8,7 @@
 *.out
 *.tar.gz
 *.csv
+old/
+ipynb/old/
+include/old/
+expmt/old/
