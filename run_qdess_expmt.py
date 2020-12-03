@@ -69,8 +69,8 @@ def run_expmt():
             net, mse_wrt_ksp, mse_wrt_img = fit(
                 ksp_masked=ksp_masked, img_masked=img_masked,
                 net=net, net_input=net_input, mask2d=mask, num_iter=NUM_ITER)
-            img_out = net(net_input.type(dtype))[0] # real tensor dim (2*nc, kx, ky)
-            img_out = reshape_adj_channels_to_complex_vals(img_out) # complex tensor dim (nc, kx, ky)
+            img_out, _ = net(net_input.type(dtype)) # real tensor dim (2*nc, kx, ky)
+            img_out = reshape_adj_channels_to_complex_vals(img_out[0]) # complex tensor dim (nc, kx, ky)
             
             # perform dc step
             ksp_est = fft_2d(img_out)

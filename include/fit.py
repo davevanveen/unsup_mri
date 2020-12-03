@@ -92,18 +92,14 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
     img_masked = reshape_complex_vals_to_adj_channels(img_masked)[None,:].cuda()
     mask2d = mask2d.cuda()
 
-    torch.cuda.synchronize()
-    t0 = time.time()
-
     for i in range(num_iter):
         def closure(): # execute this for each iteration (gradient step)
             
             optimizer.zero_grad()
             
-            out = net(net_input) # out is in img space
+            out, _ = net(net_input) # out is in img space
             out_ksp_masked = forwardm(out, mask2d).cuda() # convert img to ksp, apply mask
 
-            #if DC_STEP: # ... see code inlay at bottom of file
             loss_ksp = mse(out_ksp_masked, ksp_masked)
             
             loss_ksp.backward(retain_graph=False) 
@@ -123,10 +119,6 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
             best_mse = loss_val
             best_net = copy.deepcopy(net)
    
-    torch.cuda.synchronize()
-    t_per_i = (t1 - time.time()) / float(num_iter)
-    print('{} s / iteration for {} iter'.format(t_per_i, num_iter))
-
     return best_net, mse_wrt_ksp, mse_wrt_img
 
 
@@ -134,22 +126,8 @@ def forwardm(img, mask):
     ''' convert img --> ksp (must be complex for fft), apply mask
         input, output should have dim [2*nc,x,y] '''
 
-    print(img.shape)
     img = reshape_adj_channels_to_complex_vals(img[0]) 
     ksp = fft_2d(img).cuda()
     ksp_masked_ = ksp * mask
     
     return reshape_complex_vals_to_adj_channels(ksp_masked_)
-
-#if DC_STEP:
-#    # enforces data consistency w indexing
-#    #out_ksp_dc = data_consistency_iter(ksp=out_ksp_masked, 
-#    #           ksp_orig=ksp_orig, mask1d=mask1d, alpha=alpha)
-#    
-#    # TODO: build alternative way of enforcing data consistency with a regularizer
-#    # but this is already what we are doing, at least for final layer
-#    loss_ksp = mse(out_ksp_dc, ksp_masked)
-#else:
-#    if c_wmse:
-#        loss_ksp = w_mse(out_ksp_masked, ksp_masked, c_wmse) # loss wrt masked k-space
-#    else:

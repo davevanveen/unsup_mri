@@ -57,7 +57,6 @@ def train(args):
             net=net, net_input=net_input, mask2d=mask, args=args,
             hidden_size=hidden_size)
 
-
         img_out = net(net_input.type(dtype))
         img_out = img_out[0] if type(img_out) is tuple else img_out
 
