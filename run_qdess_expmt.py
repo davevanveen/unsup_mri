@@ -23,18 +23,54 @@ if torch.cuda.is_available():
     dtype = torch.cuda.FloatTensor
     torch.cuda.set_device(3)
 
+test_set = [
+ 'MTR_065.h5',
+ 'MTR_066.h5',
+ 'MTR_240.h5',
+ 'MTR_156.h5',
+ 'MTR_188.h5',
+ 'MTR_199.h5',
+ 'MTR_224.h5',
+ 'MTR_198.h5',
+ 'MTR_219.h5',
+ 'MTR_096.h5',
+ 'MTR_052.h5',
+ 'MTR_196.h5',
+ 'MTR_221.h5',
+ 'MTR_241.h5',
+ 'MTR_223.h5',
+ 'MTR_178.h5',
+ 'MTR_227.h5',
+ 'MTR_099.h5',
+ 'MTR_218.h5',
+ 'MTR_248.h5',
+ 'MTR_006.h5',
+ 'MTR_005.h5',
+ 'MTR_173.h5',
+ 'MTR_048.h5',
+ 'MTR_158.h5',
+ 'MTR_080.h5',
+ 'MTR_034.h5',
+ 'MTR_144.h5',
+ 'MTR_176.h5',
+ 'MTR_244.h5',
+ 'MTR_120.h5',
+ 'MTR_235.h5',
+ 'MTR_237.h5',
+ 'MTR_030.h5']
+
 
 def run_expmt():
 
     path_in = '/bmrNAS/people/arjun/data/qdess_knee_2020/files_recon_calib-16/'
-    files = [f for f in listdir(path_in) if isfile(join(path_in, f))]
-    files.sort()
-    NUM_SAMPS = 10 # number of samples to recon
+    #files = [f for f in listdir(path_in) if isfile(join(path_in, f))]
+    #files.sort()
+    #NUM_SAMPS = 10 # number of samples to recon
        
     NUM_ITER = 10000
-    ACCEL_LIST = [4, 6, 8]
+    ACCEL_LIST = [4]#, 6, 8]
 
-    for fn in files[:NUM_SAMPS]:
+    for fn in test_set: #files[:NUM_SAMPS]:
 
        # load data
         f = h5py.File(path_in + fn, 'r')
@@ -45,15 +81,17 @@ def run_expmt():
             f.close()
             continue
         f.close()
-        ksp_vol = ksp[:,:,:,1,:].permute(3,0,1,2) # get echo2, reshape to be (nc, kx, ky, kz)
+
+        # NOTE: if change to echo2, must manually change path nomenclature
+        ksp_vol = ksp[:,:,:,0,:].permute(3,0,1,2) # get echo1, reshape to be (nc, kx, ky, kz)
 
         # get central slice in kx, i.e. axial plane b/c we undersample in (ky, kz)
         idx_kx = ksp_vol.shape[1] // 2
         ksp_orig = ksp_vol[:, idx_kx, :, :]
 
         for ACCEL in ACCEL_LIST:
-            
-            path_out = '/bmrNAS/people/dvv/out_qdess/accel_{}x/'.format(ACCEL)
+           
+            path_out = '/bmrNAS/people/dvv/out_qdess/accel_{}x/echo1/'.format(ACCEL)
             
             # original masks created w central region 32x32 forced to 1's
             mask = torch.from_numpy(np.load('ipynb/masks/mask_poisson_disc_{}x.npy'.format(ACCEL)))
@@ -81,11 +119,11 @@ def run_expmt():
             img_gt = root_sum_squares(ifft_2d(ksp_orig))
 
             # save results
-            samp = fn.split('.h5')[0] + '_echo2' 
+            samp = fn.split('.h5')[0] #+ '_echo2' 
             np.save('{}{}_dc.npy'.format(path_out, samp), img_dc)
             np.save('{}{}_gt.npy'.format(path_out, samp), img_gt)
 
-            print('recon {} w shape {}'.format(samp, ksp_vol.shape)) 
+            print('recon {}'.format(samp)) 
 
     return
 
