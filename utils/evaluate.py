@@ -8,8 +8,7 @@ import scipy
 import numpy as np
 import torch
 from runstats import Statistics
-from skimage.metrics import peak_signal_noise_ratio as compare_psnr, \
-                            structural_similarity as compare_ssim
+from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 from pytorch_msssim import ms_ssim
 
 
@@ -48,12 +47,12 @@ def nmse(gt, pred):
 
 def psnr(gt, pred):
     """ Compute Peak Signal to Noise Ratio metric (PSNR) """
-    return compare_psnr(gt, pred, data_range=gt.max())
+    return peak_signal_noise_ratio(gt, pred, data_range=gt.max())
 
 def ssim(gt, pred):
     ''' compute structural similarity index metric (ssim) 
         NOTE: can get higher values by using data_range=gt.max() '''
-    return compare_ssim(gt, pred, multichannel=False, data_range=pred.max())
+    return structural_similarity(gt, pred, multichannel=False, data_range=pred.max())
 
 def vifp_mscale(ref, dist, sigma_nsq=1, eps=1e-10):
     ''' from https://github.com/aizvorski/video-quality/blob/master/vifp.py
