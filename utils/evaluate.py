@@ -24,47 +24,44 @@ def normalize_img(img_out, img_gt):
     return img_gt
 
 def calc_metrics(img_out, img_gt):
-    ''' compute vif, ssim, and psnr of img_out using im_gt as ground-truth reference '''
-   
-    img_gt = normalize_img(img_out, img_gt) # if images have different dynamic ranges
+    ''' compute vif, mssim, ssim, and psnr of img_out using img_gt as ground-truth reference '''
 
-    vif_ = vifp_mscale(img_out, img_gt, sigma_nsq=img_out.mean())
-    ssim_ = ssim(np.array([img_out]), np.array([img_gt]))
-    psnr_ = psnr(np.array([img_out]), np.array([img_gt]))
-    
-    #dt = torch.FloatTensor
-    #img_out_t = torch.from_numpy(np.array([[img_out]])).type(dt)
-    #img_gt_t = torch.from_numpy(np.array([[img_gt]])).type(dt)
-    #msssim_ = ms_ssim(img_out_t, img_gt_t, data_range=img_gt_t.max())
-    #msssim_ = msssim_.data.cpu().numpy()[np.newaxis][0]
-    
-    return vif_, None, ssim_, psnr_ 
+    img_gt = normalize_img(img_out, img_gt) 
+
+    vif_ = vifp_mscale(img_gt, img_out, sigma_nsq=img_out.mean())
+    ssim_ = ssim(img_gt, img_out)
+    psnr_ = psnr(img_out, img_gt) # note: can get higher values by swapping these around
+
+    img_out_ = torch.from_numpy(np.array([[img_out]]))
+    img_gt_ = torch.from_numpy(np.array([[img_gt]]))
+    msssim_ = ms_ssim(img_out_, img_gt_, data_range=img_gt_.max()).numpy()
+
+    return vif_, msssim_, ssim_, psnr_
 
 def mse(gt, pred):
     """ Compute Mean Squared Error (MSE) """
     return np.mean((gt - pred) ** 2)
 
-
 def nmse(gt, pred):
     """ Compute Normalized Mean Squared Error (NMSE) """
     return np.linalg.norm(gt - pred) ** 2 / np.linalg.norm(gt) ** 2
-
 
 def psnr(gt, pred):
     """ Compute Peak Signal to Noise Ratio metric (PSNR) """
     return compare_psnr(gt, pred, data_range=gt.max())
 
-
 def ssim(gt, pred):
-    """ Compute Structural Similarity Index Metric (SSIM). """
-    return compare_ssim(
-        gt.transpose(1, 2, 0), pred.transpose(1, 2, 0), multichannel=True, data_range=gt.max()
-    )
+    ''' compute structural similarity index metric (ssim) 
+        NOTE: can get higher values by using data_range=gt.max() '''
+    return compare_ssim(gt, pred, multichannel=False, data_range=pred.max())
 
-def vifp_mscale(ref, dist,sigma_nsq=1,eps=1e-10):
-    ### from https://github.com/aizvorski/video-quality/blob/master/vifp.py
-    sigma_nsq = sigma_nsq  ### tune this for your dataset to get reasonable numbers
-    eps = eps
+def vifp_mscale(ref, dist, sigma_nsq=1, eps=1e-10):
+    ''' from https://github.com/aizvorski/video-quality/blob/master/vifp.py
+        ref: reference ground-truth image
+        dist: distorted image to evaluate
+        sigma_nsq: ideally tune this according to input pixel values
+
+        NOTE: order of ref, dist is important '''
 
     num = 0.0
     den = 0.0
