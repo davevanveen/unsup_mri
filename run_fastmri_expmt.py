@@ -20,20 +20,20 @@ if torch.cuda.is_available():
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = True
     dtype = torch.cuda.FloatTensor
-    torch.cuda.set_device(2)
+    torch.cuda.set_device(3)
 else:
     dtype = torch.FloatTensor
 
 dim = 320
 
-file_id_list = ['1000273', '1000325', '1000464', '1000007', '1000537', '1000818', \
-                 '1001140', '1001219']#, '1001338', '1001598', '1001533', '1001798']
+file_id_list = ['1000273', '1000325', '1000464', '1000537', '1000818']#, \
+                 #'1001140', '1001219']#, '1001338', '1001598', '1001533', '1001798']
 file_id_list.sort()
 
 SCALE_FAC = 0.1 # per 20201112_eval_fastmri_old_v_new.ipynb
 NUM_ITER = 10000
 
-path_out = '/bmrNAS/people/dvv/out_fastmri/new_pytorch1.7/sf{}/'.format(SCALE_FAC)
+path_out = '/bmrNAS/people/dvv/out_fastmri/ismrm/model5/'#.format(SCALE_FAC)
 
 for file_id in file_id_list:
 
@@ -64,6 +64,6 @@ for file_id in file_id_list:
     img_gt = crop_center(root_sum_squares(ifft_2d(ksp_orig)), dim, dim)
     #print('note: use unscaled ksp_orig to make gt -- different from old fastmri processing')
 
-    #np.save('{}{}_est.npy'.format(path_out, file_id), img_est)
-    #np.save('{}{}_dc.npy'.format(path_out, file_id), img_dc)
-    #np.save('{}{}_gt.npy'.format(path_out, file_id), img_gt)
+    np.save('{}{}_est.npy'.format(path_out, file_id), img_est)
+    np.save('{}{}_dc.npy'.format(path_out, file_id), img_dc)
+    np.save('{}{}_gt.npy'.format(path_out, file_id), img_gt)
