@@ -12,30 +12,56 @@ from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 from pytorch_msssim import ms_ssim
 
 
-def normalize_img(img_out, img_gt):
-    ''' normalize the pixel values in im_gt according to (mean, std) of im_out
+def normalize_img(img_gt, img_out):
+    ''' normalize the pixel values in img_out according to (mean, std) of img_gt
         verified: step is necessary '''
-    
-    img_gt = (img_gt - img_gt.mean()) / img_gt.std()
-    img_gt *= img_out.std()
-    img_gt += img_out.mean()
-    
-    return img_gt
+
+    img_out = (img_out - img_out.mean()) / img_out.std()
+    img_out *= img_gt.std()
+    img_out += img_gt.mean()
+
+    return img_out
 
 def calc_metrics(img_out, img_gt):
     ''' compute vif, mssim, ssim, and psnr of img_out using img_gt as ground-truth reference '''
 
-    img_gt = normalize_img(img_out, img_gt) 
+    img_out = normalize_img(img_gt, img_out) # normalize according to (mean, std) of img_gt
 
     vif_ = vifp_mscale(img_gt, img_out, sigma_nsq=img_out.mean())
     ssim_ = ssim(img_gt, img_out)
-    psnr_ = psnr(img_out, img_gt) # note: can get higher values by swapping these around
-
+    psnr_ = psnr(img_gt, img_out)
+    
     img_out_ = torch.from_numpy(np.array([[img_out]]))
     img_gt_ = torch.from_numpy(np.array([[img_gt]]))
     msssim_ = ms_ssim(img_out_, img_gt_, data_range=img_gt_.max()).numpy()
 
     return vif_, msssim_, ssim_, psnr_
+
+# old versions pre-20201209
+#def normalize_img(img_out, img_gt):
+#    ''' normalize the pixel values in im_gt according to (mean, std) of im_out
+#        verified: step is necessary '''
+#    
+#    img_gt = (img_gt - img_gt.mean()) / img_gt.std()
+#    img_gt *= img_out.std()
+#    img_gt += img_out.mean()
+#    
+#    return img_gt
+#
+#def calc_metrics(img_out, img_gt):
+#    ''' compute vif, mssim, ssim, and psnr of img_out using img_gt as ground-truth reference '''
+#
+#    img_gt = normalize_img(img_out, img_gt) 
+#
+#    vif_ = vifp_mscale(img_gt, img_out, sigma_nsq=img_out.mean())
+#    ssim_ = ssim(img_gt, img_out)
+#    psnr_ = psnr(img_out, img_gt) # note: can get higher values by swapping these around
+#
+#    img_out_ = torch.from_numpy(np.array([[img_out]]))
+#    img_gt_ = torch.from_numpy(np.array([[img_gt]]))
+#    msssim_ = ms_ssim(img_out_, img_gt_, data_range=img_gt_.max()).numpy()
+#
+#    return vif_, msssim_, ssim_, psnr_
 
 def mse(gt, pred):
     """ Compute Mean Squared Error (MSE) """
