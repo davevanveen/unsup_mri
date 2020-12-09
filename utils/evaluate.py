@@ -12,30 +12,68 @@ from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 from pytorch_msssim import ms_ssim
 
 
-def normalize_img(img_gt, img_out):
-    ''' normalize the pixel values in img_out according to (mean, std) of img_gt
-        verified: step is necessary '''
+def calc_metrics(img_gt, img_out, imgs_already_normed=False):
+    ''' compute vif, mssim, ssim, and psnr of img_out using img_gt as ground-truth reference 
+        note: for msssim, made a slight mod to source code in line 200 of 
+              /home/vanveen/heck/lib/python3.8/site-packages/pytorch_msssim/ssim.py 
+              to compute msssim over images w smallest dim >=160 '''
 
-    img_out = (img_out - img_out.mean()) / img_out.std()
-    img_out *= img_gt.std()
-    img_out += img_gt.mean()
-
-    return img_out
-
-def calc_metrics(img_out, img_gt):
-    ''' compute vif, mssim, ssim, and psnr of img_out using img_gt as ground-truth reference '''
-
-    img_out = normalize_img(img_gt, img_out) # normalize according to (mean, std) of img_gt
+    if not imgs_already_normed:
+        img_gt, img_out = norm_imgs(img_gt, img_out)
 
     vif_ = vifp_mscale(img_gt, img_out, sigma_nsq=img_out.mean())
     ssim_ = ssim(img_gt, img_out)
     psnr_ = psnr(img_gt, img_out)
-    
+
     img_out_ = torch.from_numpy(np.array([[img_out]]))
     img_gt_ = torch.from_numpy(np.array([[img_gt]]))
     msssim_ = ms_ssim(img_out_, img_gt_, data_range=img_gt_.max()).numpy()
 
     return vif_, msssim_, ssim_, psnr_
+
+def norm_imgs(img_gt, img_out):
+    ''' first, normalize ground-truth img_gt to be on range [0,.1] 
+               note: this step has a significant effect on vif metric score 
+                               has no effect on other metric scores 
+                               
+        second, normalize predicted img_out according to range of img_gt '''
+    
+    mu, sig = img_gt.mean(), img_gt.std()
+    C = .1 / img_gt.max()
+    img_gt = (img_gt - mu) / sig
+    img_gt *= (C*sig)
+    img_gt += (C*mu)
+    
+    img_out = (img_out - img_out.mean()) / img_out.std()
+    img_out *= img_gt.std()
+    img_out += img_gt.mean()
+    
+    return img_gt, img_out
+
+#def normalize_img(img_gt, img_out):
+#    ''' normalize the pixel values in img_out according to (mean, std) of img_gt
+#        verified: step is necessary '''
+#
+#    img_out = (img_out - img_out.mean()) / img_out.std()
+#    img_out *= img_gt.std()
+#    img_out += img_gt.mean()
+#
+#    return img_out
+#
+#def calc_metrics(img_out, img_gt):
+#    ''' compute vif, mssim, ssim, and psnr of img_out using img_gt as ground-truth reference '''
+#
+#    img_out = normalize_img(img_gt, img_out) # normalize according to (mean, std) of img_gt
+#
+#    vif_ = vifp_mscale(img_gt, img_out, sigma_nsq=img_out.mean())
+#    ssim_ = ssim(img_gt, img_out)
+#    psnr_ = psnr(img_gt, img_out)
+#    
+#    img_out_ = torch.from_numpy(np.array([[img_out]]))
+#    img_gt_ = torch.from_numpy(np.array([[img_gt]]))
+#    msssim_ = ms_ssim(img_out_, img_gt_, data_range=img_gt_.max()).numpy()
+#
+#    return vif_, msssim_, ssim_, psnr_
 
 # old versions pre-20201209
 #def normalize_img(img_out, img_gt):
