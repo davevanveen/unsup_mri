@@ -21,7 +21,7 @@ if torch.cuda.is_available():
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = True
     dtype = torch.cuda.FloatTensor
-    torch.cuda.set_device(1)
+    torch.cuda.set_device(3)
 
 test_set = [
  'MTR_065.h5',
@@ -54,7 +54,7 @@ def run_expmt():
         f.close()
 
         # NOTE: if change to echo2, must manually change path nomenclature
-        ksp_vol = ksp[:,:,:,0,:].permute(3,0,1,2) # get echo1, reshape to be (nc, kx, ky, kz)
+        ksp_vol = ksp[:,:,:,1,:].permute(3,0,1,2) # get echo1, reshape to be (nc, kx, ky, kz)
 
         # get central slice in kx, i.e. axial plane b/c we undersample in (ky, kz)
         idx_kx_list = idx_kx_dict[fn]
@@ -65,7 +65,7 @@ def run_expmt():
 
             for ACCEL in ACCEL_LIST:
                
-                path_out = '/bmrNAS/people/dvv/out_qdess/specific_slices/accel_{}x/echo1/'.format(ACCEL)
+                path_out = '/bmrNAS/people/dvv/out_qdess/specific_slices/accel_{}x/echo2/'.format(ACCEL)
                 
                 # original masks created w central region 32x32 forced to 1's
                 mask = torch.from_numpy(np.load('ipynb/masks/mask_poisson_disc_{}x.npy'.format(ACCEL)))
