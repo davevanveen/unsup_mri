@@ -6,7 +6,7 @@ import json
 
 from train import train
 
-NUM_ITER = 25000
+NUM_ITER = 10000
 GPU_ID = 3 
 NUM_TRIALS = 1
 

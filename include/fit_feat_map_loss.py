@@ -88,9 +88,6 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d, args, \
                         get_meta_for_feat_map_loss(hidden_size, ksp_masked,
                                                    downsamp_method=args.downsamp_method,
                                                    weight_method=args.weight_method)
-    print('commented out fm code')
-    torch.cuda.synchronize()
-    t0 = time.time()
 
     for i in range(args.num_iter):
         def closure(): # execute this for each iteration (gradient step)
@@ -115,7 +112,7 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d, args, \
             loss_img = mse(out, img_masked) # loss in img space
             mse_wrt_img[i] = loss_img.data.cpu().numpy()
 
-            return loss_ksp
+            return loss_total # original expmts returned loss_ksp...
 
         loss = optimizer.step(closure)
 
@@ -124,10 +121,6 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d, args, \
         if best_mse > 1.005*loss_val:
             best_mse = loss_val
             best_net = copy.deepcopy(net)
-
-    torch.cuda.synchronize()
-    t_per_i = (time.time() - t0) / args.num_iter
-    print('{} s/iter for {} iter'.format(t_per_i, args.num_iter))
 
     return best_net, mse_wrt_ksp, mse_wrt_img
 
