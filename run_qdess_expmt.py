@@ -21,7 +21,7 @@ if torch.cuda.is_available():
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = True
     dtype = torch.cuda.FloatTensor
-    torch.cuda.set_device(3)
+    torch.cuda.set_device(0)
 
 test_set = [
  'MTR_065.h5',
@@ -68,7 +68,7 @@ def run_expmt():
     #NUM_SAMPS = 10 # number of samples to recon
        
     NUM_ITER = 10000
-    ACCEL_LIST = [4]#, 6, 8]
+    ACCEL_LIST = [8] # 4, 6, 8]
 
     for fn in test_set: #files[:NUM_SAMPS]:
 
