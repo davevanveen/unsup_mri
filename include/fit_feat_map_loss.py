@@ -112,7 +112,7 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d, args, \
             loss_img = mse(out, img_masked) # loss in img space
             mse_wrt_img[i] = loss_img.data.cpu().numpy()
 
-            return loss_total # original expmts returned loss_ksp...
+            return loss_ksp # original expmts returned loss_ksp, but also tried loss_total
 
         loss = optimizer.step(closure)
 
