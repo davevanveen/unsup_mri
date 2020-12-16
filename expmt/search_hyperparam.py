@@ -68,4 +68,5 @@ if __name__ == '__main__':
     hparams = init_parser()
 
     for hparam_trial in hparams.trials(NUM_TRIALS):
+        hparam_trial.trial_id = 'autybby9'
         train(hparam_trial)

@@ -6,7 +6,7 @@ import json
 
 from train import train
 
-NUM_ITER = 25000
+NUM_ITER = 10000
 GPU_ID = 2 
 NUM_TRIALS = 1
 
@@ -68,6 +68,6 @@ if __name__ == '__main__':
 
     for hparam_trial in hparams.trials(NUM_TRIALS):
 
-        hparam_trial.trial_id = '0000_25k'
+        hparam_trial.trial_id = '0000_10k'
 
         train(hparam_trial)

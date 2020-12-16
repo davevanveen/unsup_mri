@@ -28,13 +28,43 @@ def train(args):
 
     DIM = 320
     SCALE_FAC = 0.1
+    ACCEL = 4
 
-    file_id_list = ['1000273', '1000325', '1000464', \
-                    '1000537', '1000818', '1001140', '1001219', \
-                    '1001338', '1001598', '1001533', '1001798']
+    #file_id_list = ['1000273', '1000325', '1000464', \
+    #                '1000537', '1000818', '1001140', '1001219', \
+    #                '1001338', '1001598', '1001533', '1001798']
+    file_id_list = ['1000000',
+             '1000007',
+              '1000017',
+               '1000026',
+                '1000031',
+                 '1000033',
+                  '1000041',
+                   '1000052',
+                    '1000071',
+                     '1000073',
+                      '1000107',
+                       '1000108',
+                        '1000114',
+                         '1000126',
+                          '1000153',
+                           '1000178',
+                            '1000182',
+                             '1000190',
+                              '1000196',
+                               '1000201',
+                                '1000206',
+                                 '1000229',
+                                  '1000243',
+                                   '1000247',
+                                    '1000254',
+                                     '1000263',
+                                      '1000264',
+                                       '1000267']
+    
     file_id_list.sort()
 
-    path_out = '/bmrNAS/people/dvv/out_fastmri/expmt_fm_loss/'
+    path_out = '/bmrNAS/people/dvv/out_fastmri/expmt_fm_loss/trials_best/'#accel_{}x/'.format(ACCEL)
 
     # if trial_id is not already specified
     if not args.trial_id:
@@ -45,7 +75,7 @@ def train(args):
         f, ksp_orig = load_h5(file_id)
         ksp_orig = torch.from_numpy(ksp_orig)
 
-        mask = get_mask(ksp_orig)
+        mask = get_mask(ksp_orig, accelerations=[ACCEL])
         
         net, net_input, ksp_orig_, hidden_size = init_convdecoder(ksp_orig, mask)
 
