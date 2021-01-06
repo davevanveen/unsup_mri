@@ -12,3 +12,4 @@ old/
 ipynb/old/
 include/old/
 expmt/old/
+*.dcm
