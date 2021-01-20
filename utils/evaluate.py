@@ -20,6 +20,7 @@ def calc_metrics(img_gt, img_out, imgs_already_normed=False):
 
     if not imgs_already_normed:
         img_gt, img_out = norm_imgs(img_gt, img_out)
+    img_gt, img_out = np.array(img_gt), np.array(img_out)
 
     vif_ = vifp_mscale(img_gt, img_out, sigma_nsq=img_out.mean())
     ssim_ = ssim(img_gt, img_out)
@@ -27,7 +28,7 @@ def calc_metrics(img_gt, img_out, imgs_already_normed=False):
 
     img_out_ = torch.from_numpy(np.array([[img_out]]))
     img_gt_ = torch.from_numpy(np.array([[img_gt]]))
-    msssim_ = ms_ssim(img_out_, img_gt_, data_range=img_gt_.max()).numpy()
+    msssim_ = float(ms_ssim(img_out_, img_gt_, data_range=img_gt_.max()))
 
     return vif_, msssim_, ssim_, psnr_
 
