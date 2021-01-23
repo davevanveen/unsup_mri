@@ -36,13 +36,14 @@ test_set = [
              'MTR_240.h5', 'MTR_241.h5', 'MTR_244.h5', 'MTR_248.h5'
 ]
 test_set.sort()
+NUM_SAMPS = 4 # len(test_set)
 
 NUM_ITER = 10000
-ACCEL_LIST = [8] # 4, 6, 8]
+ACCEL_LIST = [4] # 4, 6, 8]
 
 def run_expmt():
 
-    for fn in test_set: 
+    for fn in test_set[:NUM_SAMPS]: 
 
        # load data
         f = h5py.File(path_in + fn, 'r')
