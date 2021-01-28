@@ -23,10 +23,12 @@ def num_params(net):
     ''' given network, return total number of params '''
     return sum([np.prod(list(p.size())) for p in net.parameters()]);
 
-def load_h5(file_id, slice_idx=None):
+def load_h5_fastmri(file_id, slice_idx=None):
     ''' given file_id, return the h5 file and central slice '''
 
-    filename = '/bmrNAS/people/dvv/multicoil_val/file{}.h5'.format(file_id)
+    path_in = '/bmrNAS/people/dvv/multicoil_val/'
+    filename = '{}file{}.h5'.format(path_in, file_id)
+    
     f = h5py.File(filename, 'r')
     #print('file_id {} w ksp shape (num_slices, num_coils, x, y): {}'.format( \
     #                                            file_id, f['kspace'].shape))
@@ -35,6 +37,22 @@ def load_h5(file_id, slice_idx=None):
     slice_ksp = f['kspace'][slice_idx]
 
     return f, slice_ksp
+
+def load_h5_qdess(file_id):
+    ''' given file_id, return the h5 file '''
+
+    path_in = '/bmrNAS/people/arjun/data/qdess_knee_2020/files_recon_calib-16/'
+    filename = '{}MTR_{}.h5'.format(path_in, file_id)
+
+    f = h5py.File(filename, 'r')
+    try:
+        ksp = torch.from_numpy(f['kspace'][()])
+    except KeyError:
+        print('No kspace in file {} w keys {}'.format(fn, f.keys()))
+    f.close()
+
+    return ksp
+    
 
 ############################################################
 ### BELOW CODE is to avoid running redundant expmts ########

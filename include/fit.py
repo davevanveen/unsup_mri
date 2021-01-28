@@ -97,7 +97,7 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
             
             optimizer.zero_grad()
             
-            out, _ = net(net_input) # out is in img space
+            out = net(net_input) # out is in img space
             out_ksp_masked = forwardm(out, mask2d).cuda() # convert img to ksp, apply mask
 
             loss_ksp = mse(out_ksp_masked, ksp_masked)
