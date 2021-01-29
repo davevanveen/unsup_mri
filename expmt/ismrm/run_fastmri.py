@@ -35,35 +35,36 @@ NUM_ITER = 10000
 
 path_out = '/bmrNAS/people/dvv/out_fastmri/ismrm/model5/'#.format(SCALE_FAC)
 
-for file_id in file_id_list:
 
-    #if os.path.exists('{}{}_dc.npy'.format(path_out, file_id)):
-    #    continue
+def run_expmt():
+    for file_id in file_id_list:
 
-    f, ksp_orig = load_h5(file_id)
-    ksp_orig = torch.from_numpy(ksp_orig)
+        f, ksp_orig = load_h5(file_id)
+        ksp_orig = torch.from_numpy(ksp_orig)
 
-    mask = get_mask(ksp_orig)
+        mask = get_mask(ksp_orig)
 
-    net, net_input, ksp_orig_, _ = init_convdecoder(ksp_orig, mask)
+        net, net_input, ksp_orig_, _ = init_convdecoder(ksp_orig, mask)
 
-    ksp_masked = SCALE_FAC * ksp_orig_ * mask 
-    img_masked = ifft_2d(ksp_masked)
+        ksp_masked = SCALE_FAC * ksp_orig_ * mask 
+        img_masked = ifft_2d(ksp_masked)
 
-    net, mse_wrt_ksp, mse_wrt_img = fit(
-        ksp_masked=ksp_masked, img_masked=img_masked,
-        net=net, net_input=net_input, mask2d=mask, num_iter=NUM_ITER)
+        net, mse_wrt_ksp, mse_wrt_img = fit(
+            ksp_masked=ksp_masked, img_masked=img_masked,
+            net=net, net_input=net_input, mask2d=mask, num_iter=NUM_ITER)
 
-    img_out, _ = net(net_input.type(dtype))
-    img_out = reshape_adj_channels_to_complex_vals(img_out[0])
-    ksp_est = fft_2d(img_out)
-    ksp_dc = torch.where(mask, ksp_masked, ksp_est)
+        img_out, _ = net(net_input.type(dtype))
+        img_out = reshape_adj_channels_to_complex_vals(img_out[0])
+        ksp_est = fft_2d(img_out)
+        ksp_dc = torch.where(mask, ksp_masked, ksp_est)
 
-    img_est = crop_center(root_sum_squares(ifft_2d(ksp_est)).detach(), dim, dim)
-    img_dc = crop_center(root_sum_squares(ifft_2d(ksp_dc)).detach(), dim, dim)
-    img_gt = crop_center(root_sum_squares(ifft_2d(ksp_orig)), dim, dim)
-    #print('note: use unscaled ksp_orig to make gt -- different from old fastmri processing')
+        img_est = crop_center(root_sum_squares(ifft_2d(ksp_est)).detach(), dim, dim)
+        img_dc = crop_center(root_sum_squares(ifft_2d(ksp_dc)).detach(), dim, dim)
+        img_gt = crop_center(root_sum_squares(ifft_2d(ksp_orig)), dim, dim)
 
-    np.save('{}{}_est.npy'.format(path_out, file_id), img_est)
-    np.save('{}{}_dc.npy'.format(path_out, file_id), img_dc)
-    np.save('{}{}_gt.npy'.format(path_out, file_id), img_gt)
+        np.save('{}{}_est.npy'.format(path_out, file_id), img_est)
+        np.save('{}{}_dc.npy'.format(path_out, file_id), img_dc)
+        np.save('{}{}_gt.npy'.format(path_out, file_id), img_gt)
+
+if __name__ == '__main__':
+    run_expmt()
