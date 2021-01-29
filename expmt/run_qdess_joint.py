@@ -46,7 +46,7 @@ def run_expmt(file_id_list):
 
             # original masks created w central region 32x32 forced to 1's
             mask = torch.from_numpy(np.load('/home/vanveen/ConvDecoder/ipynb/masks/mask_poisson_disc_{}x.npy'.format(ACCEL)))
-
+            
             # initialize network
             net, net_input, ksp_orig_ = init_convdecoder(ksp_orig, mask)
 
@@ -55,10 +55,11 @@ def run_expmt(file_id_list):
             img_masked = ifft_2d(ksp_masked)
 
             # fit network, get net output
+
             net, mse_wrt_ksp, mse_wrt_img = fit(
                 ksp_masked=ksp_masked, img_masked=img_masked,
                 net=net, net_input=net_input, mask2d=mask, num_iter=NUM_ITER)
-            img_out, = net(net_input.type(dtype)) # real tensor dim (2*nc, kx, ky)
+            img_out = net(net_input.type(dtype)) # real tensor dim (2*nc, kx, ky)
             img_out = reshape_adj_channels_to_complex_vals(img_out[0]) # complex tensor dim (nc, kx, ky)
             
             # perform dc step
@@ -70,12 +71,12 @@ def run_expmt(file_id_list):
             img_1_gt = root_sum_squares(ifft_2d(ksp_orig[:8]))
             img_2_dc = root_sum_squares(ifft_2d(ksp_dc[8:])).detach()
             img_2_gt = root_sum_squares(ifft_2d(ksp_orig[8:]))
-
+            
             # save results
-            np.save('{}{}_e1-joint-recon_dc.npy'.format(path_out, file_id), img_1_dc)
-            np.save('{}{}_e1_gt.npy'.format(path_out, file_id), img_1_gt)
-            np.save('{}{}_e2-joint-recon_dc.npy'.format(path_out, file_id), img_2_dc)
-            np.save('{}{}_e2_gt.npy'.format(path_out, file_id), img_2_gt)
+            np.save('{}MTR_{}_e1_dc.npy'.format(path_out, file_id), img_1_dc)
+            np.save('{}MTR_{}_e1_gt.npy'.format(path_out, file_id), img_1_gt)
+            np.save('{}MTR_{}_e2_dc.npy'.format(path_out, file_id), img_2_dc)
+            np.save('{}MTR_{}_e2_gt.npy'.format(path_out, file_id), img_2_gt)
 
             print('recon {}'.format(file_id)) 
 
