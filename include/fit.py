@@ -5,14 +5,11 @@ import numpy as np
 import os, sys
 import time
 
-#from .helpers import *
-from .mri_helpers import data_consistency_iter
 from .transforms import *
 sys.path.append('/home/vanveen/ConvDecoder/')
 from utils.transform import fft_2d, ifft_2d, root_sum_squares, \
                             reshape_complex_vals_to_adj_channels, \
                             reshape_adj_channels_to_complex_vals
-
 dtype = torch.cuda.FloatTensor
 
 def sqnorm(a):
@@ -50,7 +47,7 @@ class MSLELoss(torch.nn.Module):
 def fit(ksp_masked, img_masked, net, net_input, mask2d, 
         mask1d=None, ksp_orig=None, DC_STEP=False, alpha=0.5,
         num_iter=5000, lr=0.01, img_ls=None, dtype=torch.cuda.FloatTensor, 
-        c_wmse=None):
+        c_wmse=None, LOSS_IN_KSP=True):
     ''' fit a network to masked k-space measurement
         args:
             ksp_masked: masked k-space of a single slice. torch variable [1,C,H,W]
@@ -94,23 +91,27 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
 
     for i in range(num_iter):
         def closure(): # execute this for each iteration (gradient step)
-            
+
             optimizer.zero_grad()
-            
+
             out = net(net_input) # out is in img space
-            out_ksp_masked = forwardm(out, mask2d).cuda() # convert img to ksp, apply mask
 
-            loss_ksp = mse(out_ksp_masked, ksp_masked)
-            
-            loss_ksp.backward(retain_graph=False) 
-            
-            # store loss over each iteration
-            mse_wrt_ksp[i] = loss_ksp.data.cpu().numpy()
-            loss_img = mse(out, img_masked) # loss in img space
-            mse_wrt_img[i] = loss_img.data.cpu().numpy()
+            if LOSS_IN_KSP: # perform loss in k-space
+                out_ksp_masked = forwardm(out, mask2d).cuda() # convert img to ksp, apply mask
+                loss_ksp = mse(out_ksp_masked, ksp_masked)
+                loss_ksp.backward(retain_graph=False)
+            else:
+                out_img_masked = forwardm_img(out, mask2d) # img-->ksp, mask, convert to img
+                loss_img = mse(out_img_masked, img_masked)
+                loss_img.backward(retain_graph=False)
 
-            return loss_ksp   
- 
+            # mse_wrt_ksp[i] = loss_ksp.data.cpu().numpy() # store loss over each iteration
+            
+            if LOSS_IN_KSP:
+                return loss_ksp
+            else:
+                return loss_img
+
         loss = optimizer.step(closure)
 
         # at each iteration, check if loss improves by 1%. if so, a new best net
@@ -121,6 +122,16 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
    
     return best_net, mse_wrt_ksp, mse_wrt_img
 
+def forwardm_img(img, mask):
+    ''' convert img --> ksp (must be complex for fft), apply mask
+        convert back to img. input dim [2*nc,x,y], output dim [1,2*nc,x,y] '''
+
+    img = reshape_adj_channels_to_complex_vals(img[0])
+    ksp = fft_2d(img).cuda()
+    ksp_masked_ = ksp * mask
+    img_masked_ = ifft_2d(ksp_masked_)
+
+    return reshape_complex_vals_to_adj_channels(img_masked_)[None, :]
 
 def forwardm(img, mask):
     ''' convert img --> ksp (must be complex for fft), apply mask

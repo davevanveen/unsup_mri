@@ -25,6 +25,7 @@ if torch.cuda.is_available():
 
 ACCEL_LIST = [4] # 4, 6, 8]
 NUM_ITER = 10000
+LOSS_IN_KSP = False
 
 def run_expmt(file_id_list):
 
@@ -40,7 +41,7 @@ def run_expmt(file_id_list):
 
         for ACCEL in ACCEL_LIST:
            
-            path_out = '/bmrNAS/people/dvv/out_qdess/accel_{}x/echo_joint/new_layers/'.format(ACCEL)
+            path_out = '/bmrNAS/people/dvv/out_qdess/accel_{}x/echo_joint/loss_img_l2/'.format(ACCEL)
             if os.path.exists('{}{}_e1-joint-recon_dc.npy'.format(path_out, file_id)):
                 continue
 
@@ -58,7 +59,8 @@ def run_expmt(file_id_list):
 
             net, mse_wrt_ksp, mse_wrt_img = fit(
                 ksp_masked=ksp_masked, img_masked=img_masked,
-                net=net, net_input=net_input, mask2d=mask, num_iter=NUM_ITER)
+                net=net, net_input=net_input, mask2d=mask, num_iter=NUM_ITER,
+                LOSS_IN_KSP=LOSS_IN_KSP)
             img_out = net(net_input.type(dtype)) # real tensor dim (2*nc, kx, ky)
             img_out = reshape_adj_channels_to_complex_vals(img_out[0]) # complex tensor dim (nc, kx, ky)
             
