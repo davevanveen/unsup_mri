@@ -47,7 +47,7 @@ class MSLELoss(torch.nn.Module):
 def fit(ksp_masked, img_masked, net, net_input, mask2d, 
         mask1d=None, ksp_orig=None, DC_STEP=False, alpha=0.5,
         num_iter=5000, lr=0.01, img_ls=None, dtype=torch.cuda.FloatTensor, 
-        c_wmse=None, LOSS_IN_KSP=True):
+        c_wmse=None, LOSS_IN_KSP=True, LAMBDA_TV=0):
     ''' fit a network to masked k-space measurement
         args:
             ksp_masked: masked k-space of a single slice. torch variable [1,C,H,W]
@@ -99,18 +99,23 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
             if LOSS_IN_KSP: # perform loss in k-space
                 out_ksp_masked = forwardm(out, mask2d).cuda() # convert img to ksp, apply mask
                 loss_ksp = mse(out_ksp_masked, ksp_masked)
-                loss_ksp.backward(retain_graph=False)
+                #loss_ksp.backward(retain_graph=False)
+                loss_total = loss_ksp
             else:
                 out_img_masked = forwardm_img(out, mask2d) # img-->ksp, mask, convert to img
                 loss_img = mse(out_img_masked, img_masked)
-                loss_img.backward(retain_graph=False)
+                loss_tv = (torch.sum(torch.abs(out_img_masked[:,:,:,:-1] - \
+                                               out_img_masked[:,:,:,1:])) \
+                         + torch.sum(torch.abs(out_img_masked[:,:,:-1,:] - \
+                                               out_img_masked[:,:,1:,:])))
+                #loss_img.backward(retain_graph=False)
+                loss_total = loss_img + LAMBDA_TV * loss_tv
+            
+            loss_total.backward(retain_graph=False)
 
             # mse_wrt_ksp[i] = loss_ksp.data.cpu().numpy() # store loss over each iteration
             
-            if LOSS_IN_KSP:
-                return loss_ksp
-            else:
-                return loss_img
+            return loss_total
 
         loss = optimizer.step(closure)
 
