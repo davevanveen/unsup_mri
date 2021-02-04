@@ -30,7 +30,7 @@ TEST_SET = ['030', '034', '048', '052', '065', '066', '005', '006', '080',
 TEST_SET.sort()
 
 ACCEL_LIST = [4] # 4, 6, 8]
-LAMBDA_TV_LIST = [1e-7, 1e-8, 1e-9, 1e-10]
+LAMBDA_TV_LIST = [5e-9, 1e-8, 5e-8]
 NUM_ITER = 10000
 LOSS_IN_KSP = False
 
@@ -46,22 +46,21 @@ def run_expmt(args):
         ksp_echo2 = ksp[:,:,:,1,:].permute(3,0,1,2)[:, idx_kx, :, :]
         ksp_orig = torch.cat((ksp_echo1, ksp_echo2), 0)
 
-        for ACCEL in ACCEL_LIST:
+        for accel in args.accel_list:
 
             args.save_path='/bmrNAS/people/dvv/out_qdess/accel_{}x/echo_joint/loss_tv_tune/'\
-                             .format(args.accel)
+                             .format(accel)
             sp = args.save_path
             if not os.path.exists(sp):
                 os.makedirs(sp)
 
             for lam_tv in args.lambda_tv_list:
-           
-                sp = args.save_path
+          
                 if os.path.exists('{}MTR_{}_e1_dc_tv{}.npy'.format(sp, file_id, lam_tv)):
                     continue
 
                 # original masks created w central region 32x32 forced to 1's
-                mask = torch.from_numpy(np.load('/home/vanveen/ConvDecoder/ipynb/masks/mask_poisson_disc_{}x.npy'.format(ACCEL)))
+                mask = torch.from_numpy(np.load('/home/vanveen/ConvDecoder/ipynb/masks/mask_poisson_disc_{}x.npy'.format(accel)))
                 
                 # initialize network
                 net, net_input, ksp_orig_ = init_convdecoder(ksp_orig, mask)
@@ -85,9 +84,9 @@ def run_expmt(args):
 
                 # create data-consistent, ground-truth images from k-space
                 img_1_dc = root_sum_squares(ifft_2d(ksp_dc[:8])).detach()
-                img_1_gt = root_sum_squares(ifft_2d(ksp_orig[:8]))
+                #img_1_gt = root_sum_squares(ifft_2d(ksp_orig[:8]))
                 img_2_dc = root_sum_squares(ifft_2d(ksp_dc[8:])).detach()
-                img_2_gt = root_sum_squares(ifft_2d(ksp_orig[8:]))
+                #img_2_gt = root_sum_squares(ifft_2d(ksp_orig[8:]))
                 
                 # save results
                 np.save('{}MTR_{}_e1_dc_tv{}.npy'.format(sp, file_id, lam_tv), img_1_dc)
@@ -103,7 +102,7 @@ def init_parser():
 
     parser.add_argument('--gpu_id', type=int, default=0)
     parser.add_argument('--lambda_tv_list', nargs='+', type=float, default=LAMBDA_TV_LIST)
-    parser.add_argument('--accel', nargs='+', type=int, default=ACCEL_LIST)
+    parser.add_argument('--accel_list', nargs='+', type=int, default=ACCEL_LIST)
     parser.add_argument('--file_id_list', nargs='+', default=TEST_SET)
 
     args = parser.parse_args()
