@@ -48,7 +48,7 @@ def run_expmt(args):
 
         for ACCEL in ACCEL_LIST:
 
-            args.save_path='/bmrNAS/people/dvv/out_qdess/accel_{}x/echo_joint/loss_tv_tune/'\
+            args.save_path='/bmrNAS/people/dvv/out_qdess/accel_{}x/echo_joint/specific_slices/'\
                              .format(args.accel)
             sp = args.save_path
             if not os.path.exists(sp):
