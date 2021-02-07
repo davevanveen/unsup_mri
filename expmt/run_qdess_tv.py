@@ -29,8 +29,8 @@ TEST_SET = ['030', '034', '048', '052', '065', '066', '005', '006', '080',
             '224', '227', '235', '237', '240', '241', '244', '248']
 TEST_SET.sort()
 
-ACCEL_LIST = [4] # 4, 6, 8]
-LAMBDA_TV_LIST = [5e-9, 1e-8, 5e-8]
+ACCEL_LIST = [8] # 4, 6, 8]
+LAMBDA_TV_LIST = [1e-8, 5e-8]
 NUM_ITER = 10000
 LOSS_IN_KSP = False
 
