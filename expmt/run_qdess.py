@@ -29,10 +29,9 @@ TEST_SET = ['030', '034', '048', '052', '065', '066', '005', '006', '080',
             '224', '227', '235', '237', '240', '241', '244', '248']
 TEST_SET.sort()
 
-ACCEL_LIST = [4] # 4, 6, 8]
-LAMBDA_TV = 0 #_LIST = [1e-7, 1e-8, 1e-9, 1e-10]
+ACCEL_LIST = [4, 8] # 4, 6, 8]
+LAMBDA_TV = 1e-8 # default value
 NUM_ITER = 10000
-LOSS_IN_KSP = False
 
 def run_expmt(args):
 
@@ -46,18 +45,17 @@ def run_expmt(args):
         ksp_echo2 = ksp[:,:,:,1,:].permute(3,0,1,2)[:, idx_kx, :, :]
         ksp_orig = torch.cat((ksp_echo1, ksp_echo2), 0)
 
-        for ACCEL in ACCEL_LIST:
+        for accel in args.accel_list:
 
-            args.save_path='/bmrNAS/people/dvv/out_qdess/accel_{}x/echo_joint/specific_slices/'\
-                             .format(args.accel)
+            args.save_path='/bmrNAS/people/dvv/out_qdess/accel_{}x/echo_joint/'.format(accel)
             sp = args.save_path
             if not os.path.exists(sp):
                 os.makedirs(sp)
-            if os.path.exists('{}MTR_{}_e1_dc_tv{}.npy'.format(sp, file_id, LAMBDA_TV)):
+            if os.path.exists('{}MTR_{}_e1_dc.npy'.format(sp, file_id)):
                 continue
 
             # original masks created w central region 32x32 forced to 1's
-            mask = torch.from_numpy(np.load('/home/vanveen/ConvDecoder/ipynb/masks/mask_poisson_disc_{}x.npy'.format(ACCEL)))
+            mask = torch.from_numpy(np.load('/home/vanveen/ConvDecoder/ipynb/masks/mask_poisson_disc_{}x.npy'.format(accel)))
             
             # initialize network
             net, net_input, ksp_orig_ = init_convdecoder(ksp_orig, mask)
@@ -71,7 +69,7 @@ def run_expmt(args):
             net, mse_wrt_ksp, mse_wrt_img = fit(
                 ksp_masked=ksp_masked, img_masked=img_masked,
                 net=net, net_input=net_input, mask2d=mask, num_iter=NUM_ITER,
-                LOSS_IN_KSP=LOSS_IN_KSP, LAMBDA_TV=LAMBDA_TV)
+                LAMBDA_TV=LAMBDA_TV)
             img_out = net(net_input.type(dtype)) # real tensor dim (2*nc, kx, ky)
             img_out = reshape_adj_channels_to_complex_vals(img_out[0]) # complex tensor dim (nc, kx, ky)
             
@@ -86,12 +84,12 @@ def run_expmt(args):
             img_2_gt = root_sum_squares(ifft_2d(ksp_orig[8:]))
             
             # save results
-            np.save('{}MTR_{}_e1_dc_tv{}.npy'.format(sp, file_id, LAMBDA_TV), img_1_dc)
-            np.save('{}MTR_{}_e2_dc_tv{}.npy'.format(sp, file_id, LAMBDA_TV), img_2_dc)
+            np.save('{}MTR_{}_e1_dc.npy'.format(sp, file_id), img_1_dc)
+            np.save('{}MTR_{}_e2_dc.npy'.format(sp, file_id), img_2_dc)
 
             print('recon {}'.format(file_id)) 
 
-return
+    return
 
 def init_parser():
 
@@ -99,7 +97,8 @@ def init_parser():
 
     parser.add_argument('--gpu_id', type=int, default=0)
     #parser.add_argument('--lambda_tv', type=float, default=LAMBDA_TV)
-    parser.add_argument('--accel', nargs='+', type=int, default=ACCEL_LIST)
+    parser.add_argument('--accel_list', nargs='+', type=int, default=ACCEL_LIST)
+    #parser.add_argument('--accel', type=int, default=4)
     parser.add_argument('--file_id_list', nargs='+', default=TEST_SET)
 
     args = parser.parse_args()

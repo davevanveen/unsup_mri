@@ -30,9 +30,9 @@ TEST_SET = ['030', '034', '048', '052', '065', '066', '005', '006', '080',
 TEST_SET.sort()
 
 ACCEL_LIST = [4] # 4, 6, 8]
+ACCEL = 4
 LAMBDA_TV = 0 #_LIST = [1e-7, 1e-8, 1e-9, 1e-10]
 NUM_ITER = 10000
-LOSS_IN_KSP = True
 
 def run_expmt(args):
 
@@ -75,7 +75,7 @@ def run_expmt(args):
                 net, mse_wrt_ksp, mse_wrt_img = fit(
                     ksp_masked=ksp_masked, img_masked=img_masked,
                     net=net, net_input=net_input, mask2d=mask, num_iter=NUM_ITER,
-                    LOSS_IN_KSP=LOSS_IN_KSP, LAMBDA_TV=0)
+                    LAMBDA_TV=LAMBDA_TV)
                 img_out = net(net_input.type(dtype)) # real tensor dim (2*nc, kx, ky)
                 img_out = reshape_adj_channels_to_complex_vals(img_out[0]) # complex tensor dim (nc, kx, ky)
                 
@@ -85,13 +85,13 @@ def run_expmt(args):
 
                 # create data-consistent, ground-truth images from k-space
                 img_1_dc = root_sum_squares(ifft_2d(ksp_dc[:8])).detach()
-                img_1_gt = root_sum_squares(ifft_2d(ksp_orig[:8]))
+                #img_1_gt = root_sum_squares(ifft_2d(ksp_orig[:8]))
                 img_2_dc = root_sum_squares(ifft_2d(ksp_dc[8:])).detach()
-                img_2_gt = root_sum_squares(ifft_2d(ksp_orig[8:]))
+                #img_2_gt = root_sum_squares(ifft_2d(ksp_orig[8:]))
                 
                 # save results
-                np.save('{}MTR_{}_e1_dc_slice{}.npy'.format(sp, file_id, idx_kx), img_1_dc)
-                np.save('{}MTR_{}_e2_dc_slice{}.npy'.format(sp, file_id, idx_kx), img_2_dc)
+                np.save('{}MTR_{}_e1_dc_slice{}_tv{}.npy'.format(sp, file_id, idx_kx, LAMBDA_TV), img_1_dc)
+                np.save('{}MTR_{}_e2_dc_slice{}_tv{}.npy'.format(sp, file_id, idx_kx, LAMBDA_TV), img_2_dc)
 
                 print('recon {}'.format(file_id)) 
 
@@ -102,8 +102,8 @@ def init_parser():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--gpu_id', type=int, default=0)
-    #parser.add_argument('--lambda_tv', type=float, default=LAMBDA_TV)
-    parser.add_argument('--accel', nargs='+', type=int, default=ACCEL_LIST)
+    parser.add_argument('--lambda_tv', type=float, default=LAMBDA_TV)
+    parser.add_argument('--accel', nargs='+', type=int, default=ACCEL)
     parser.add_argument('--file_id_list', nargs='+', default=TEST_SET)
 
     args = parser.parse_args()

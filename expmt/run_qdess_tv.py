@@ -32,7 +32,6 @@ TEST_SET.sort()
 ACCEL_LIST = [8] # 4, 6, 8]
 LAMBDA_TV_LIST = [1e-8, 5e-8]
 NUM_ITER = 10000
-LOSS_IN_KSP = False
 
 def run_expmt(args):
 
@@ -74,7 +73,7 @@ def run_expmt(args):
                 net, mse_wrt_ksp, mse_wrt_img = fit(
                     ksp_masked=ksp_masked, img_masked=img_masked,
                     net=net, net_input=net_input, mask2d=mask, num_iter=NUM_ITER,
-                    LOSS_IN_KSP=LOSS_IN_KSP, LAMBDA_TV=lam_tv)
+                    LAMBDA_TV=lam_tv)
                 img_out = net(net_input.type(dtype)) # real tensor dim (2*nc, kx, ky)
                 img_out = reshape_adj_channels_to_complex_vals(img_out[0]) # complex tensor dim (nc, kx, ky)
                 
