@@ -1,46 +1,85 @@
 import torch 
 import os, sys
 import numpy as np
-from torch.autograd import Variable
+import math
 
-dtype = torch.cuda.FloatTensor
+def generate_t2_map(echo1, echo2, hdr = None, mask = None,
+                    suppress_fat: bool = False, suppress_fluid: bool = False,
+                    gl_area: float = None, tg: float = None):
 
-def data_consistency_iter(ksp, ksp_orig, mask1d, alpha=0.5):
-    ''' apply dc step (ksp only) within gradient step
-        i.e. replace vals of ksp w ksp_orig per mask1d 
-        ksp, ksp_orig are torch tensors shape [1,15,x,y,2] '''
+    """ Generate 3D t2 map
+    :param suppress_fat: Suppress fat region in t2 computation (i.e. reduce noise)
+    :param gl_area: GL Area - required if not provided in the dicom
+    :param tg: tg value (in microseconds) - required if not provided in the dicom
+    :return MedicalVolume with 3D map of t2 values
+            all invalid pixels are denoted by the value 0
+    """
 
-    raise NotImplementedError('redo this function based on new processing')
-    
-    # interpolate b/w ksp and ksp_orig according to mask1d
-    ksp_dc = Variable(ksp.clone()).type(dtype) 
-    ksp_dc[:,:,:,mask1d==1,:] = ksp_orig[:,:,:,mask1d==1,:] 
-    
-    return alpha*ksp_dc + (1-alpha)*ksp # as alpha increase, more weight on dc
+    T2_LOWER_BOUND = 10
+    T2_UPPER_BOUND = 100
+    CART_ADC = 1.25*1e-9
+    CART_T1 = 1.2
+    BETA_VAL = 1.2
+    # All timing in seconds
 
-def data_consistency(img_out, slice_ksp, mask1d):
-    ''' perform data-consistency step given image 
-        parameters:
-                img_out: network output image
-                slice_ksp: original k-space measurements 
-        return:
-                img_dc: data-consistent output image
-                img_est: output image without data consistency '''
-    
-    raise NotImplementedError('redo this function based on new processing')
+    try:
+        TR = float(hdr.RepetitionTime) * 1e-3
+        TE = float(hdr.EchoTime) * 1e-3
+    except:
+        TR = 18.6 * 1e-3
+        TE = 5.9 * 1e-3
 
-    #img_out = reshape_complex_channels_to_sep_dimn(img_out)
+    # Flip Angle (degree -> radians)
+    alpha = math.radians(float(hdr.FlipAngle))
 
-    # now get F*G(\hat{C}), i.e. estimated recon in k-space
-    ksp_est = fft_2d(img_out) # now [30,x,y], prev  ([15,x,y,2]) 
-    ksp_orig = np_to_tt(split_complex_vals(slice_ksp)) # [15,x,y,2]; slice_ksp (15,x,y) complex
+    try:
+        GlArea = float(hdr['001910b6'].value)
+        Tg = float(hdr['001910b6'].value) * 1e-6
+    except:
+        GlArea = 3132
+        Tg = 1800 * 1e-6
 
-    # replace estimated coeffs in k-space by original coeffs if it has been sampled
-    mask1d = torch.from_numpy(np.array(mask1d, dtype=np.uint8)) # shape: torch.Size([368]) w 41 non-zero elements
-    ksp_dc = ksp_est.clone().detach().cpu()
-    ksp_dc[:,:,mask1d==1,:] = ksp_orig[:,:,mask1d==1,:]
+    Gl = GlArea / (Tg * 1e6) * 100
+    gamma = 4258 * 2 * math.pi  # Gamma, Rad / (G * s).
+    dkL = gamma * Gl * Tg
 
-    img_dc = recon_ksp_to_img(ksp_dc)
-    img_est = recon_ksp_to_img(ksp_est.detach().cpu())
-    
-    return img_dc, img_est
+    # Simply math
+    k = math.pow((math.sin(alpha / 2)), 2) * (
+            1 + math.exp(-TR / CART_T1 - TR * math.pow(dkL, 2) * CART_ADC)) / (
+                1 - math.cos(alpha) * math.exp(-TR / CART_T1 - TR * math.pow(dkL, 2) * CART_ADC))
+
+    c1 = (TR - Tg / 3) * (math.pow(dkL, 2)) * CART_ADC
+
+    # T2 fit
+    if mask is None:
+        mask = np.ones(echo1.shape)
+
+    ratio = mask * echo2 / echo1
+    ratio = np.nan_to_num(ratio)
+
+    # have to divide division into steps to avoid overflow error
+    t2map = (-2000 * (TR - TE) / (np.log(abs(ratio) / k) + c1))
+
+    t2map = np.nan_to_num(t2map)
+
+    # Filter calculated T2 values that are below 0ms and over 100ms
+    t2map[t2map <= T2_LOWER_BOUND] = T2_LOWER_BOUND
+    t2map[t2map > T2_UPPER_BOUND] = T2_UPPER_BOUND
+
+    t2map = np.around(t2map, decimals = 2)
+
+    # Exclude fat pixels based on signal intensity
+    if suppress_fat:
+        t2map = t2map * (echo1 > 0.15 * np.max(echo1))
+
+    # Create a fluid nulled image and then exclude fluid pixels
+    if suppress_fluid:
+        fluid_sup = echo1-BETA_VAL*echo2
+        t2map = t2map * (fluid_sup > 0.15*np.max(fluid_sup))
+
+    tmp_mean = np.nanmean(np.where(t2map!=0,t2map,np.nan))
+    tmp_std  = np.nanstd(np.where(t2map!=0,t2map,np.nan))
+
+    # Return the T2 map and tuple for non-zero mean and std of the T2 map
+    return t2map, (np.around(tmp_mean, 2), np.around(tmp_std, 2) )
+
