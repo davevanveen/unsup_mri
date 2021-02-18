@@ -41,7 +41,7 @@ class MSLELoss(torch.nn.Module):
 def fit(ksp_masked, img_masked, net, net_input, mask2d, 
         mask1d=None, ksp_orig=None, DC_STEP=False, alpha=0.5,
         num_iter=5000, lr=0.01, img_ls=None, dtype=torch.cuda.FloatTensor, 
-        LAMBDA_TV=0):
+        LAMBDA_TV=1e-8):
     ''' fit a network to masked k-space measurement
         args:
             ksp_masked: masked k-space of a single slice. torch variable [1,C,H,W]

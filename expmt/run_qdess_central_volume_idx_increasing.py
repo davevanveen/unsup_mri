@@ -31,6 +31,7 @@ TEST_SET.sort()
 
 ACCEL_LIST = [4] # 4, 6, 8]
 ACCEL = 4
+LAMBDA_TV = 1e-8
 NUM_ITER = 10000
 
 def run_expmt(args):
@@ -39,10 +40,9 @@ def run_expmt(args):
 
         ksp = load_h5_qdess(file_id)
 
+        idx_kx_list = np.arange(266, 356)
+
         # load, concat both echo slices
-        idx_kx = ksp.shape[0] // 2 # want central slice in kx (axial) b/c we undersample in (ky,kz)
-        idx_kx_list = np.arange(idx_kx-10, idx_kx+10, 1)
-        
         for idx_kx in idx_kx_list:
             
             ksp_echo1 = ksp[:,:,:,0,:].permute(3,0,1,2)[:, idx_kx, :, :]
