@@ -22,15 +22,21 @@ def generate_t2_map(echo1, echo2, hdr = None, mask = None,
     BETA_VAL = 1.2
     # All timing in seconds
 
+    # across different scans, (tr,te) values vary slightly
+    # this code sets them as constant
     try:
         TR = float(hdr.RepetitionTime) * 1e-3
         TE = float(hdr.EchoTime) * 1e-3
     except:
-        TR = 18.6 * 1e-3
-        TE = 5.9 * 1e-3
+        TR = 18.6 * 1e-3 # 20.36 * 1e-3 per dcm
+        TE = 5.9 * 1e-3 
+        # e1, e2 have te of 6.428 * 1e-3, 34.292 * 1e-3, respectively
 
     # Flip Angle (degree -> radians)
-    alpha = math.radians(float(hdr.FlipAngle))
+    try:
+        alpha = math.radians(float(hdr.FlipAngle))
+    except:
+        alpha = math.radians(20) # flip angle for dess: 20
 
     try:
         GlArea = float(hdr['001910b6'].value)
