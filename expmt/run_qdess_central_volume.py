@@ -31,6 +31,7 @@ TEST_SET.sort()
 
 ACCEL_LIST = [4] # 4, 6, 8]
 ACCEL = 4
+LAMBDA_TV = 1e-8
 NUM_ITER = 10000
 
 def run_expmt(args):
