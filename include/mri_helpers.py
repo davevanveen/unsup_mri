@@ -87,5 +87,5 @@ def generate_t2_map(echo1, echo2, hdr = None, mask = None,
     tmp_std  = np.nanstd(np.where(t2map!=0,t2map,np.nan))
 
     # Return the T2 map and tuple for non-zero mean and std of the T2 map
-    return t2map, (np.around(tmp_mean, 2), np.around(tmp_std, 2) )
+    return t2map, (np.around(tmp_mean, 2), np.around(tmp_std, 2))
 

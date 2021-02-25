@@ -83,6 +83,7 @@ def run_expmt(args):
             img_2_dc = root_sum_squares(ifft_2d(ksp_dc[8:])).detach()
             img_2_gt = root_sum_squares(ifft_2d(ksp_orig[8:]))
             
+            
             # save results
             np.save('{}MTR_{}_e1_dc.npy'.format(sp, file_id), img_1_dc)
             np.save('{}MTR_{}_e2_dc.npy'.format(sp, file_id), img_2_dc)
@@ -95,7 +96,7 @@ def init_parser():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--gpu_id', type=int, default=0)
+    parser.add_argument('--gpu_id', type=int, default=2)
     #parser.add_argument('--lambda_tv', type=float, default=LAMBDA_TV)
     parser.add_argument('--accel_list', nargs='+', type=int, default=ACCEL_LIST)
     #parser.add_argument('--accel', type=int, default=4)
