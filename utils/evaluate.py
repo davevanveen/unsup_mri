@@ -12,14 +12,13 @@ from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 from pytorch_msssim import ms_ssim
 
 
-def calc_metrics(img_gt, img_out, imgs_already_normed=False):
+def calc_metrics(img_gt, img_out):
     ''' compute vif, mssim, ssim, and psnr of img_out using img_gt as ground-truth reference 
         note: for msssim, made a slight mod to source code in line 200 of 
               /home/vanveen/heck/lib/python3.8/site-packages/pytorch_msssim/ssim.py 
               to compute msssim over images w smallest dim >=160 '''
 
-    if not imgs_already_normed:
-        img_gt, img_out = norm_imgs(img_gt, img_out)
+    img_gt, img_out = norm_imgs(img_gt, img_out)
     img_gt, img_out = np.array(img_gt), np.array(img_out)
 
     vif_ = vifp_mscale(img_gt, img_out, sigma_nsq=img_out.mean())
@@ -51,16 +50,16 @@ def norm_imgs(img_gt, img_out):
     
     return img_gt, img_out
 
-# TODO: merge this with norm_imgs() above
-def normalize_img(img_gt, img_out):
-    ''' normalize the pixel values in img_out according to (mean, std) of img_gt
-        verified: step is necessary '''
-
-    img_out = (img_out - img_out.mean()) / img_out.std()
-    img_out *= img_gt.std()
-    img_out += img_gt.mean()
-
-    return img_out
+# TODO: delete this if irrelevant, else merge this with norm_imgs() above
+#def normalize_img(img_gt, img_out):
+#    ''' normalize the pixel values in img_out according to (mean, std) of img_gt
+#        verified: step is necessary '''
+#
+#    img_out = (img_out - img_out.mean()) / img_out.std()
+#    img_out *= img_gt.std()
+#    img_out += img_gt.mean()
+#
+#    return img_out
 
 def mse(gt, pred):
     """ Compute Mean Squared Error (MSE) """
