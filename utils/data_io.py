@@ -1,10 +1,56 @@
 import os, sys
+from os import listdir
+from os.path import isfile, join, isdir
 import numpy as np
 import torch
 import h5py
 
 from include.subsample import MaskFunc
 
+def get_file_list(path):
+    files = [f for f in listdir(path) if isfile(join(path, f))]
+    files.sort()
+    return files
+
+def get_mtr_ids(file_list):
+    ''' given list of files 
+        return list of unique XXX entries in MTR_XXX_... ''' 
+    mtr_ids = list(set([s.split('MTR_')[1][:3] for s in file_list]))
+    mtr_ids.sort()    
+    return mtr_ids
+
+def get_mtr_ids_and(path_1, path_2):
+    ''' given two paths, return list of matching filenames in each directory '''
+    
+    # get list of mtr ids in each directory
+    mtr_ids_1 = get_mtr_ids(get_file_list(path_1))
+    mtr_ids_2 = get_mtr_ids(get_file_list(path_2))
+    
+    mtr_ids_and = [a and b for a, b in zip(mtr_ids_1, mtr_ids_2)]
+    mtr_ids_and.sort()
+    
+    if len(mtr_ids_and) == 0:
+        raise ValueError('no overlapping files between paths')
+        
+    return mtr_ids_and
+
+def load_imgs(mtr_id_list, path):
+    ''' given list of mtr_ids and a directory 
+        return single array w all imgs '''
+    
+    # indicator string if loading gt
+    gt_str = '_gt' if '/gt/' in path else '' 
+
+    num_samps = len(mtr_id_list)
+    num_echos, num_y, num_z = 2, 512, 160
+    arr = np.empty((num_samps, num_echos, num_y, num_z))
+        
+    for idx_s, mtr_id in enumerate(mtr_id_list):
+        
+        arr[idx_s, 0] = np.load('{}MTR_{}_e1{}.npy'.format(path, mtr_id, gt_str))
+        arr[idx_s, 1] = np.load('{}MTR_{}_e2{}.npy'.format(path, mtr_id, gt_str))
+        
+    return arr
 
 def get_mask(ksp_orig, center_fractions=[0.07], accelerations=[4]):
     ''' simplified version of get_masks() in utils.helpers -- return only a 1d mask in torch tensor '''
@@ -53,10 +99,6 @@ def load_h5_qdess(file_id):
 
     return ksp
     
-
-
-
-
 ### TODO: delete below code
 ############################################################
 ### BELOW CODE is to avoid running redundant expmts ########

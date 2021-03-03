@@ -53,13 +53,12 @@ class Conv_Model(nn.Module):
         # to return feat_maps, see Conv_Model_Old() at bottom of file
         return self.net(x)
 
-def init_convdecoder(ksp_orig, mask, \
+def init_convdecoder(ksp_orig, \
                      in_size=[8,4], num_layers=8, num_channels=160, kernel_size=3):
     ''' wrapper function for initializing convdecoder based on input ksp_orig
 
         parameters:
                 ksp_orig: original, unmasked k-space measurements
-                mask: mask used to downsample original k-space
         return:
                 net: initialized convdecoder
                 net_input: random, scaled input seed

@@ -13,6 +13,7 @@ sys.path.append('/home/vanveen/ConvDecoder/')
 from utils.data_io import load_h5_qdess, num_params
 from include.decoder_conv import init_convdecoder
 from include.fit import fit
+from include.mri_helpers import apply_mask, apply_dual_mask
 from utils.evaluate import calc_metrics
 from utils.transform import fft_2d, ifft_2d, root_sum_squares, \
                             reshape_complex_vals_to_adj_channels, \
@@ -23,15 +24,12 @@ if torch.cuda.is_available():
     torch.backends.cudnn.benchmark = True
     dtype = torch.cuda.FloatTensor
 
-TEST_SET = ['030', '034', '048', '052', '065', '066', '005', '006', '080', 
-            '096', '099', '120', '144', '156', '158', '173', '176', '178', 
-            '188', '196', '198', '199', '218', '219', '221', '223',
-            '224', '227', '235', '237', '240', '241', '244', '248']
-TEST_SET.sort()
+TEST_SET = ['005', '006', '030', '034', '048', '052', '065', '066', '080', 
+            '096', '099', '120']#, '144', '156', '158', '173', '176', '178', 
+            #'188', '196', '198', '199', '218', '219', '221', '223',
+            #'224', '227', '235', '237', '240', '241', '244', '248']
+ACCEL_LIST = [4, 8] # 4, 6, 8]
 
-ACCEL_LIST = [8] # 4, 6, 8]
-LAMBDA_TV = 1e-8 # default value
-NUM_ITER = 10000
 
 def run_expmt(args):
 
@@ -47,44 +45,48 @@ def run_expmt(args):
 
         for accel in args.accel_list:
 
-            args.save_path='/bmrNAS/people/dvv/out_qdess/accel_{}x/echo_joint/mask_rect/'.format(accel)
-            args.path_gt = '/bmrNAS/people/dvv/out_qdess/accel_{}x/echo_joint/gt/'.format(accel)
-            sp = args.save_path
-            if os.path.exists('{}MTR_{}_e1_dc.npy'.format(sp, file_id)):
+            # manage paths for input/output
+            path_base = '/bmrNAS/people/dvv/out_qdess/accel_{}x/echo_joint/'.format(accel)
+            path_out = '{}{}/'.format(path_base, args.dir_out)
+            args.path_gt = path_base + 'gt/'
+            if os.path.exists('{}MTR_{}_e1.npy'.format(path_out, file_id)):
                 continue
-            if not os.path.exists(sp):
-                os.makedirs(sp)
+            if not os.path.exists(path_out):
+                os.makedirs(path_out)
             if not os.path.exists(args.path_gt):
                 os.makedirs(args.path_gt)
 
-            # original masks created w central region 32x32 forced to 1's
-            mask = torch.from_numpy(np.load('/home/vanveen/ConvDecoder/ipynb/masks/mask_poisson_disc_{}x.npy'.format(accel)))
-            
             # initialize network
-            net, net_input, ksp_orig_ = init_convdecoder(ksp_orig, mask)
+            net, net_input, ksp_orig_ = init_convdecoder(ksp_orig) # TODO: init dd+ w ksp_masked
 
             # apply mask after rescaling k-space. want complex tensors dim (nc, ky, kz)
-            ksp_masked = ksp_orig_ * mask
+            if args.dual_mask:
+                ksp_masked, mask1, mask2 = apply_dual_mask(ksp_orig_, accel)
+            else:
+                ksp_masked, mask = apply_mask(ksp_orig_, accel)
             im_masked = ifft_2d(ksp_masked)
 
-            # fit network, get net output
-
+            # fit network, get net output - default 10k iterations, lam_tv=1e-8
             net, mse_wrt_ksp, mse_wrt_img = fit(
                 ksp_masked=ksp_masked, img_masked=im_masked,
-                net=net, net_input=net_input, mask2d=mask, num_iter=NUM_ITER,
-                LAMBDA_TV=LAMBDA_TV)
+                net=net, net_input=net_input, mask2d=mask)
             im_out = net(net_input.type(dtype)) # real tensor dim (2*nc, kx, ky)
             im_out = reshape_adj_channels_to_complex_vals(im_out[0]) # complex tensor dim (nc, kx, ky)
             
             # perform dc step
             ksp_est = fft_2d(im_out)
-            ksp_dc = torch.where(mask, ksp_masked, ksp_est)
+            if args.dual_mask:
+                ksp_dc_e1 = torch.where(mask1, ksp_masked[:8], ksp_est[:8])
+                ksp_dc_e2 = torch.where(mask2, ksp_masked[8:], ksp_est[8:])
+                ksp_dc = torch.cat((ksp_dc_e1, ksp_dc_e2), 0)
+            else:
+                ksp_dc = torch.where(mask, ksp_masked, ksp_est)
 
             # create data-consistent, ground-truth images from k-space
             im_1_dc = root_sum_squares(ifft_2d(ksp_dc[:8])).detach()
             im_2_dc = root_sum_squares(ifft_2d(ksp_dc[8:])).detach()
-            np.save('{}MTR_{}_e1.npy'.format(sp, file_id), im_1_dc)
-            np.save('{}MTR_{}_e2.npy'.format(sp, file_id), im_2_dc)
+            np.save('{}MTR_{}_e1.npy'.format(path_out, file_id), im_1_dc)
+            np.save('{}MTR_{}_e2.npy'.format(path_out, file_id), im_2_dc)
            
             # save gt w proper array scaling if dne
             if not os.path.exists('{}MTR_{}_e1_gt.npy'.format(args.path_gt, file_id)):
@@ -102,10 +104,13 @@ def init_parser():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--gpu_id', type=int, default=2)
-    #parser.add_argument('--lambda_tv', type=float, default=LAMBDA_TV)
     parser.add_argument('--accel_list', nargs='+', type=int, default=ACCEL_LIST)
-    #parser.add_argument('--accel', type=int, default=4)
     parser.add_argument('--file_id_list', nargs='+', default=TEST_SET)
+    parser.add_argument('--dir_out', type=str, default='')
+    
+    parser.add_argument('--dual_mask', dest='dual_mask', action='store_true')
+    parser.add_argument('--no_dual_mask', dest='dual_mask', action='store_false')
+    parser.set_defaults(no_dual_mask=True)
 
     args = parser.parse_args()
 

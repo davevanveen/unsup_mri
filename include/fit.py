@@ -39,8 +39,7 @@ class MSLELoss(torch.nn.Module):
         return loss
 
 def fit(ksp_masked, img_masked, net, net_input, mask2d, 
-        mask1d=None, ksp_orig=None, DC_STEP=False, alpha=0.5,
-        num_iter=5000, lr=0.01, img_ls=None, dtype=torch.cuda.FloatTensor, 
+        num_iter=10000, lr=0.01, img_ls=None, dtype=torch.cuda.FloatTensor, 
         LAMBDA_TV=1e-8):
     ''' fit a network to masked k-space measurement
         args:
@@ -49,11 +48,6 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
             net: original network with randomly initiated weights
             net_input: randomly generated + scaled network input
             mask2d: 2D mask for undersampling the ksp
-            mask1d: 1D mask for data consistency step. boolean torch tensor size [y]
-            ksp_orig: orig ksp meas for data consistency step. torch tensor [15,x,y,2]
-            DC_STEP: (boolean) do data consistency step during network fit
-            alpha: control weight to which we enforce data consistency,
-                   e.g. ksp_out = alpha*ksp_dc + (1-alpha)*ksp_in, 0 <= alpha < 1
             num_iter: number of iterations to optimize network
             lr: learning rate
             img_ls: least-squares image of unmasked k-space, i.e. ifft(ksp_full)
@@ -67,8 +61,6 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
     # initialize variables
     if img_ls is not None or net_input is None: 
         raise NotImplementedError('incorporate original code here')
-    if alpha < 0 or alpha >= 1:
-        raise ValueError('alpha must be non-negative and strictly less than 1')
     net_input = net_input.type(dtype)
     best_net = copy.deepcopy(net)
     best_mse = 10000.0
@@ -90,11 +82,6 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
 
             out = net(net_input) # out is in img space
 
-            #if LOSS_IN_KSP: # perform loss in k-space
-            #    out_ksp_masked = forwardm(out, mask2d).cuda() # convert img to ksp, apply mask
-            #    loss_ksp = mse(out_ksp_masked, ksp_masked)
-            #    loss_total = loss_ksp
-            #else:
             out_img_masked = forwardm_img(out, mask2d) # img-->ksp, mask, convert to img
             loss_img = mse(out_img_masked, img_masked)
             loss_tv = (torch.sum(torch.abs(out_img_masked[:,:,:,:-1] - \
