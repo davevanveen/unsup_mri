@@ -67,15 +67,18 @@ def run_expmt(args):
             im_masked = ifft_2d(ksp_masked)
 
             # fit network, get net output - default 10k iterations, lam_tv=1e-8
-            net, mse_wrt_ksp, mse_wrt_img = fit(
-                ksp_masked=ksp_masked, img_masked=im_masked,
-                net=net, net_input=net_input, mask2d=mask)
+            if args.dual_mask:
+                net = fit(ksp_masked=ksp_masked, img_masked=im_masked,
+                          net=net, net_input=net_input, mask=mask1, mask2=mask2)
+            else: 
+                net = fit(ksp_masked=ksp_masked, img_masked=im_masked,
+                          net=net, net_input=net_input, mask=mask)
             im_out = net(net_input.type(dtype)) # real tensor dim (2*nc, kx, ky)
             im_out = reshape_adj_channels_to_complex_vals(im_out[0]) # complex tensor dim (nc, kx, ky)
             
             # perform dc step
             ksp_est = fft_2d(im_out)
-            if args.dual_mask:
+            if args.dual_mask: #  ksp in format [re+im(e1), re+im(e2)]
                 ksp_dc_e1 = torch.where(mask1, ksp_masked[:8], ksp_est[:8])
                 ksp_dc_e2 = torch.where(mask2, ksp_masked[8:], ksp_est[8:])
                 ksp_dc = torch.cat((ksp_dc_e1, ksp_dc_e2), 0)

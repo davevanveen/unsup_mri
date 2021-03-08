@@ -38,7 +38,7 @@ class MSLELoss(torch.nn.Module):
         loss = torch.log(criterion(x, y))
         return loss
 
-def fit(ksp_masked, img_masked, net, net_input, mask2d, 
+def fit(ksp_masked, img_masked, net, net_input, mask, mask2=None,
         num_iter=10000, lr=0.01, img_ls=None, dtype=torch.cuda.FloatTensor, 
         LAMBDA_TV=1e-8):
     ''' fit a network to masked k-space measurement
@@ -47,7 +47,8 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
             img_masked: ifft(ksp_masked). torch variable [1,C,H,W]
             net: original network with randomly initiated weights
             net_input: randomly generated + scaled network input
-            mask2d: 2D mask for undersampling the ksp
+            mask: 2D mask for undersampling the ksp
+            mask2: 2D mask for echo2, if applying dual mask
             num_iter: number of iterations to optimize network
             lr: learning rate
             img_ls: least-squares image of unmasked k-space, i.e. ifft(ksp_full)
@@ -64,7 +65,7 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
     net_input = net_input.type(dtype)
     best_net = copy.deepcopy(net)
     best_mse = 10000.0
-    mse_wrt_ksp, mse_wrt_img = np.zeros(num_iter), np.zeros(num_iter)
+    #mse_wrt_ksp, mse_wrt_img = np.zeros(num_iter), np.zeros(num_iter)
     
     p = [x for x in net.parameters()]
     optimizer = torch.optim.Adam(p, lr=lr,weight_decay=0)
@@ -73,7 +74,9 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
     # convert complex [nc,x,y] --> real [2*nc,x,y] to match w net output
     ksp_masked = reshape_complex_vals_to_adj_channels(ksp_masked).cuda()
     img_masked = reshape_complex_vals_to_adj_channels(img_masked)[None,:].cuda()
-    mask2d = mask2d.cuda()
+    mask = mask.cuda()
+    if mask2 != None:
+        mask2 = mask2.cuda()
 
     for i in range(num_iter):
         def closure(): # execute this for each iteration (gradient step)
@@ -82,8 +85,18 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
 
             out = net(net_input) # out is in img space
 
-            out_img_masked = forwardm_img(out, mask2d) # img-->ksp, mask, convert to img
+            out_img_masked = forwardm(out, mask, mask2) # img-->ksp, mask, convert to img
+            
+            if mask2==None and i % 100 == 0:
+                loss_e1 = mse(out_img_masked[:8], img_masked[:8]) + \
+                          mse(out_img_masked[16:24], img_masked[16:24])
+                loss_e2 = mse(out_img_masked[8:16], img_masked[8:16]) + \
+                          mse(out_img_masked[24:32], img_masked[24:32])
+                loss_e1, loss_e2 = loss_e1.data, loss_e2.data
+                print(loss_e1, loss_e2)
+
             loss_img = mse(out_img_masked, img_masked)
+
             loss_tv = (torch.sum(torch.abs(out_img_masked[:,:,:,:-1] - \
                                            out_img_masked[:,:,:,1:])) \
                      + torch.sum(torch.abs(out_img_masked[:,:,:-1,:] - \
@@ -104,25 +117,37 @@ def fit(ksp_masked, img_masked, net, net_input, mask2d,
             best_mse = loss_val
             best_net = copy.deepcopy(net)
    
-    return best_net, mse_wrt_ksp, mse_wrt_img
+    return best_net#, mse_wrt_ksp, mse_wrt_img
 
-def forwardm_img(img, mask):
+def forwardm(img, mask, mask2=None):
     ''' convert img --> ksp (must be complex for fft), apply mask
-        convert back to img. input dim [2*nc,x,y], output dim [1,2*nc,x,y] '''
+        convert back to img. input dim [2*nc,x,y], output dim [1,2*nc,x,y] 
+        
+        if applying dual mask:
+            we have [re(e1) | re(e2) | im(e1) | im(e2)] 
+            must apply mask, mask2 accordingly '''
 
     img = reshape_adj_channels_to_complex_vals(img[0])
     ksp = fft_2d(img).cuda()
-    ksp_masked_ = ksp * mask
+    
+    if mask2==None: 
+        ksp_masked_ = ksp * mask
+    else: # apply dual masks, i.e. mask to e1, e2 separately
+        assert ksp.shape == (16, 512, 160)
+        ksp_m_1 = ksp[:8] * mask
+        ksp_m_2 = ksp[:8] * mask2
+        ksp_masked_ = torch.cat((ksp_m_1, ksp_m_2), 0)
+
     img_masked_ = ifft_2d(ksp_masked_)
 
     return reshape_complex_vals_to_adj_channels(img_masked_)[None, :]
 
-def forwardm(img, mask):
-    ''' convert img --> ksp (must be complex for fft), apply mask
-        input, output should have dim [2*nc,x,y] '''
-
-    img = reshape_adj_channels_to_complex_vals(img[0]) 
-    ksp = fft_2d(img).cuda()
-    ksp_masked_ = ksp * mask
-    
-    return reshape_complex_vals_to_adj_channels(ksp_masked_)
+#def forwardm_ksp(img, mask):
+#    ''' convert img --> ksp (must be complex for fft), apply mask
+#        input, output should have dim [2*nc,x,y] '''
+#
+#    img = reshape_adj_channels_to_complex_vals(img[0]) 
+#    ksp = fft_2d(img).cuda()
+#    ksp_masked_ = ksp * mask
+#    
+#    return reshape_complex_vals_to_adj_channels(ksp_masked_)
