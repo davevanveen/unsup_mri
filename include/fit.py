@@ -123,9 +123,10 @@ def forwardm(img, mask, mask2=None):
     ''' convert img --> ksp (must be complex for fft), apply mask
         convert back to img. input dim [2*nc,x,y], output dim [1,2*nc,x,y] 
         
-        if applying dual mask:
-            we have [re(e1) | re(e2) | im(e1) | im(e2)] 
-            must apply mask, mask2 accordingly '''
+        if adj (real-valued) channels:
+            we have 2*nc, [re(e1) | re(e2) | im(e1) | im(e2)] 
+        elif complex channels:
+            we have nc, [re+im(e1) | re+im(e2)] '''
 
     img = reshape_adj_channels_to_complex_vals(img[0])
     ksp = fft_2d(img).cuda()
@@ -135,7 +136,7 @@ def forwardm(img, mask, mask2=None):
     else: # apply dual masks, i.e. mask to e1, e2 separately
         assert ksp.shape == (16, 512, 160)
         ksp_m_1 = ksp[:8] * mask
-        ksp_m_2 = ksp[:8] * mask2
+        ksp_m_2 = ksp[8:] * mask2
         ksp_masked_ = torch.cat((ksp_m_1, ksp_m_2), 0)
 
     img_masked_ = ifft_2d(ksp_masked_)

@@ -71,7 +71,11 @@ def norm_imgs(img_gt, img_out):
     
     return img_gt, img_out
 
-def plot_row_qdess(arr_list, title_list=None, clim=None):
+def scale_0_1(arr):
+    ''' given any array, map it to [0,1] range '''
+    return (arr - arr.min()) * (1. / arr.max())
+
+def plot_row_qdess(arr_list, title_list=None, clim_list=None):
     ''' given list of imgs, plot a single row for comparison
         e.g. arr_list=[im_gt, im_1, im_2]
              titel_list=[gt, method 1, method 2] '''
@@ -85,20 +89,10 @@ def plot_row_qdess(arr_list, title_list=None, clim=None):
 
     for idx in range(NUM_COLS):
         ax = fig.add_subplot(1,NUM_COLS,idx+1)
-        ax.imshow(arr_list[idx], cmap='gray', clim=clim, aspect=1./SF)
+        ax.imshow(arr_list[idx], cmap='gray', \
+                  clim=clim_list[idx], aspect=1./SF)
         ax.set_title(title_list[idx], fontsize=20)
         ax.axis('off')
-
-# TODO: delete this if irrelevant, else merge this with norm_imgs() above
-#def normalize_img(img_gt, img_out):
-#    ''' normalize the pixel values in img_out according to (mean, std) of img_gt
-#        verified: step is necessary '''
-#
-#    img_out = (img_out - img_out.mean()) / img_out.std()
-#    img_out *= img_gt.std()
-#    img_out += img_gt.mean()
-#
-#    return img_out
 
 ##############################################################
 # below contains wrapper functions for computing quant metrics 
