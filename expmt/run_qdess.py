@@ -46,7 +46,7 @@ def run_expmt(args):
         for accel in args.accel_list:
 
             # manage paths for input/output
-            path_base = '/bmrNAS/people/dvv/out_qdess/accel_{}x/echo_joint/'.format(accel)
+            path_base = '/bmrNAS/people/dvv/out_qdess/accel_{}x/'.format(accel)
             path_out = '{}{}/'.format(path_base, args.dir_out)
             args.path_gt = path_base + 'gt/'
             if os.path.exists('{}MTR_{}_e1.npy'.format(path_out, file_id)):
