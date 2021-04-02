@@ -60,19 +60,30 @@ def run_expmt(args):
             net, net_input, ksp_orig_ = init_convdecoder(ksp_orig) # TODO: init dd+ w ksp_masked
 
             # apply mask after rescaling k-space. want complex tensors dim (nc, ky, kz)
-            ksp_masked, mask = apply_mask(ksp_orig_, accel)
+            if args.dual_mask:
+                ksp_masked, mask1, mask2 = apply_dual_mask(ksp_orig_, accel)
+            else:
+                ksp_masked, mask = apply_mask(ksp_orig_, accel)
             im_masked = ifft_2d(ksp_masked)
 
             # fit network, get net output - default 10k iterations, lam_tv=1e-8
-            net = fit(ksp_masked=ksp_masked, img_masked=im_masked,
-                      net=net, net_input=net_input, mask=mask)
+            if args.dual_mask:
+                net = fit(ksp_masked=ksp_masked, img_masked=im_masked,
+                          net=net, net_input=net_input, mask=mask1, mask2=mask2)
+            else: 
+                net = fit(ksp_masked=ksp_masked, img_masked=im_masked,
+                          net=net, net_input=net_input, mask=mask)
             im_out = net(net_input.type(dtype)) # real tensor dim (2*nc, kx, ky)
             im_out = reshape_adj_channels_to_complex_vals(im_out[0]) # complex tensor dim (nc, kx, ky)
             
             # perform dc step
             ksp_est = fft_2d(im_out)
-            ksp_dc = torch.where(mask, ksp_masked, ksp_est)
-            np.save('{}/MTR_{}_ksp_dc.npy'.format(path_out, file_id))
+            if args.dual_mask: #  ksp in format [re+im(e1), re+im(e2)]
+                ksp_dc_e1 = torch.where(mask1, ksp_masked[:8], ksp_est[:8])
+                ksp_dc_e2 = torch.where(mask2, ksp_masked[8:], ksp_est[8:])
+                ksp_dc = torch.cat((ksp_dc_e1, ksp_dc_e2), 0)
+            else:
+                ksp_dc = torch.where(mask, ksp_masked, ksp_est)
 
             # create data-consistent, ground-truth images from k-space
             im_1_dc = root_sum_squares(ifft_2d(ksp_dc[:8])).detach()
@@ -103,6 +114,7 @@ def init_parser():
     parser.add_argument('--dual_mask', dest='dual_mask', action='store_true')
     parser.add_argument('--no_dual_mask', dest='dual_mask', action='store_false')
     parser.set_defaults(no_dual_mask=True)
+    # e.g. to run w dual_mask: python run_qdess.py --dir_out mask_dual --dual_mask
 
     args = parser.parse_args()
 

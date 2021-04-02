@@ -87,13 +87,12 @@ def fit(ksp_masked, img_masked, net, net_input, mask, mask2=None,
 
             out_img_masked = forwardm(out, mask, mask2) # img-->ksp, mask, convert to img
             
-            if mask2==None and i % 100 == 0:
-                loss_e1 = mse(out_img_masked[:8], img_masked[:8]) + \
-                          mse(out_img_masked[16:24], img_masked[16:24])
-                loss_e2 = mse(out_img_masked[8:16], img_masked[8:16]) + \
-                          mse(out_img_masked[24:32], img_masked[24:32])
-                loss_e1, loss_e2 = loss_e1.data, loss_e2.data
-                print(loss_e1, loss_e2)
+            #if mask2==None and i % 100 == 0:
+            #    loss_e1 = mse(out_img_masked[:8], img_masked[:8]) + \
+            #              mse(out_img_masked[16:24], img_masked[16:24])
+            #    loss_e2 = mse(out_img_masked[8:16], img_masked[8:16]) + \
+            #              mse(out_img_masked[24:32], img_masked[24:32])
+            #    loss_e1, loss_e2 = loss_e1.data, loss_e2.data
 
             loss_img = mse(out_img_masked, img_masked)
 

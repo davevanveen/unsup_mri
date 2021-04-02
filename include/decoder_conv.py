@@ -54,7 +54,8 @@ class Conv_Model(nn.Module):
         return self.net(x)
 
 def init_convdecoder(ksp_orig, \
-                     in_size=[8,4], num_layers=8, num_channels=160, kernel_size=3):
+                     in_size=[8,4], num_layers=8, num_channels=160, kernel_size=3,
+                     fix_random_seed=True):
     ''' wrapper function for initializing convdecoder based on input ksp_orig
 
         parameters:
@@ -68,13 +69,14 @@ def init_convdecoder(ksp_orig, \
     out_depth = ksp_orig.shape[0]*2 # 2*n_c, i.e. 2*15=30 if multi-coil
     hidden_size = get_hidden_size(in_size, out_size, num_layers) # list of intermed layer sizes
 
-    torch.manual_seed(0)
+    if fix_random_seed:
+        torch.manual_seed(0)
 
     net = Conv_Model(num_layers, num_channels, out_depth, hidden_size).type(dtype)
 
 #     print('# parameters of ConvDecoder:',num_params(net))
 
-    net_input = get_net_input(num_channels, in_size)
+    net_input = get_net_input(num_channels, in_size, fix_random_seed)
     
     # create scaled ksp to be compatible w network magnitude
     scale_factor = get_scale_factor(net, net_input, ksp_orig)
@@ -99,12 +101,13 @@ def get_hidden_size(in_size, out_size, num_layers):
 
     return hidden_size
 
-def get_net_input(num_channels, in_size):
+def get_net_input(num_channels, in_size, fix_random_seed=True):
     ''' return net_input, e.g. tensor w values samples uniformly on [0,1] '''
     
     shape = [1, num_channels, in_size[0], in_size[1]]
     net_input = Variable(torch.zeros(shape)).type(dtype)
-    torch.manual_seed(0)
+    if fix_random_seed:
+        torch.manual_seed(0)
     net_input.data.uniform_()
 
     return net_input
