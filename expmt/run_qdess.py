@@ -10,7 +10,7 @@ import torch
 import argparse
 
 sys.path.append('/home/vanveen/ConvDecoder/')
-from utils.data_io import load_h5_qdess, num_params
+from utils.data_io import load_qdess, num_params
 from include.decoder_conv import init_convdecoder
 from include.fit import fit
 from include.mri_helpers import apply_mask, apply_dual_mask
@@ -54,7 +54,7 @@ def run_expmt(args):
             net, net_input, ksp_orig_ = init_convdecoder(ksp_orig) # TODO: init dd+ w ksp_masked
 
             # apply mask after rescaling k-space. want complex tensors dim (nc, ky, kz)
-            ksp_masked, mask = apply_mask(ksp_orig_, accel)
+            ksp_masked, mask = apply_mask(ksp_orig_, accel, file_id, arj_mask=args.arj_mask)
             im_masked = ifft_2d(ksp_masked)
 
             # fit network, get net output - default 10k iterations, lam_tv=1e-8
@@ -94,9 +94,9 @@ def init_parser():
     parser.add_argument('--file_id_list', nargs='+', default=TEST_SET)
     parser.add_argument('--dir_out', type=str, default='')
     
-    parser.add_argument('--dual_mask', dest='dual_mask', action='store_true')
-    parser.add_argument('--no_dual_mask', dest='dual_mask', action='store_false')
-    parser.set_defaults(no_dual_mask=True)
+    parser.add_argument('--arj_mask', dest='arj_mask', action='store_true')
+    parser.add_argument('--no_arj_mask', dest='arj_mask', action='store_false')
+    parser.set_defaults(no_arj_mask=True)
 
     args = parser.parse_args()
 
