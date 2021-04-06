@@ -84,6 +84,29 @@ def load_h5_fastmri(file_id, slice_idx=None):
 
     return f, slice_ksp
 
+def load_qdess(file_id, idx_kx=None):
+    ''' load qdess w shortcut if pre-saved npy slice exists 
+        default idx_kx is central in kx (axial) b/c we undersample in (ky,kz)'''
+
+    file_in = '/bmrNAS/people/dvv/in_qdess/central_slice_in_kx/MTR_{}.npy'.format(file_id)
+    
+    if os.path.exists(file_in) and not idx_kx:
+        return torch.from_numpy(np.load(file_in))
+    
+    else:
+        
+        ksp = load_h5_qdess(file_id)
+
+        if idx_kx == None:
+            idx_kx = ksp.shape[0] // 2
+       
+        # reshape, concat echo1 + echo2
+        ksp_echo1 = ksp[:,:,:,0,:].permute(3,0,1,2)[:, idx_kx, :, :]
+        ksp_echo2 = ksp[:,:,:,1,:].permute(3,0,1,2)[:, idx_kx, :, :]
+        ksp_orig = torch.cat((ksp_echo1, ksp_echo2), 0)
+
+        return ksp_orig
+
 def load_h5_qdess(file_id):
     ''' given file_id, return the h5 file '''
 

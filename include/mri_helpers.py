@@ -6,12 +6,17 @@ import math
 
 path_m = '/home/vanveen/ConvDecoder/masks/'
 
-def apply_mask(ksp_orig, accel):
-    ''' apply '''
+def apply_mask(ksp_orig, accel, new=False):
+    ''' apply mask
+        default (pre 20210405): 512x160 mask w 64x64 calibration region 
+        new: 512x80 mask zero padded to 512x160, w a 24x24 calibration region '''
 
     assert ksp_orig.shape[-2:] == (512, 160)
     
-    mask = torch.from_numpy(np.load('{}mask_poisson_disc_{}x.npy'.format(path_m, accel)))
+    if new:
+        mask = None 
+    else:
+        mask = torch.from_numpy(np.load('{}mask_poisson_disc_{}x.npy'.format(path_m, accel)))
     
     return ksp_orig * mask, mask
     

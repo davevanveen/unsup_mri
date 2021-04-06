@@ -35,13 +35,7 @@ def run_expmt(args):
 
     for file_id in args.file_id_list: 
 
-        ksp = load_h5_qdess(file_id)
-
-        # load, concat both echo slices
-        idx_kx = ksp.shape[0] // 2 # want central slice in kx (axial) b/c we undersample in (ky,kz)
-        ksp_echo1 = ksp[:,:,:,0,:].permute(3,0,1,2)[:, idx_kx, :, :]
-        ksp_echo2 = ksp[:,:,:,1,:].permute(3,0,1,2)[:, idx_kx, :, :]
-        ksp_orig = torch.cat((ksp_echo1, ksp_echo2), 0)
+        ksp_orig = load_qdess(file_id, idx_kx=None) # default central slice in kx (axial)
 
         for accel in args.accel_list:
 
@@ -72,7 +66,7 @@ def run_expmt(args):
             # perform dc step
             ksp_est = fft_2d(im_out)
             ksp_dc = torch.where(mask, ksp_masked, ksp_est)
-            np.save('{}/MTR_{}_ksp_dc.npy'.format(path_out, file_id))
+            np.save('{}/MTR_{}_ksp_dc.npy'.format(path_out, file_id), ksp_dc.detach().numpy())
 
             # create data-consistent, ground-truth images from k-space
             im_1_dc = root_sum_squares(ifft_2d(ksp_dc[:8])).detach()
