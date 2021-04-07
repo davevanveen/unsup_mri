@@ -26,7 +26,7 @@ def get_mtr_ids_and(path_1, path_2):
     mtr_ids_1 = get_mtr_ids(get_file_list(path_1))
     mtr_ids_2 = get_mtr_ids(get_file_list(path_2))
     
-    mtr_ids_and = [a and b for a, b in zip(mtr_ids_1, mtr_ids_2)]
+    mtr_ids_and = list(set(mtr_ids_1) & set(mtr_ids_2))
     mtr_ids_and.sort()
     
     if len(mtr_ids_and) == 0:

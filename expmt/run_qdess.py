@@ -54,7 +54,9 @@ def run_expmt(args):
             net, net_input, ksp_orig_ = init_convdecoder(ksp_orig) # TODO: init dd+ w ksp_masked
 
             # apply mask after rescaling k-space. want complex tensors dim (nc, ky, kz)
-            ksp_masked, mask = apply_mask(ksp_orig_, accel, file_id, arj_mask=args.arj_mask)
+            ksp_masked, mask = apply_mask(ksp_orig_, accel, 
+                                          file_id, arj_mask=args.arj_mask,
+                                          custom_calib=args.calib)
             im_masked = ifft_2d(ksp_masked)
 
             # fit network, get net output - default 10k iterations, lam_tv=1e-8
@@ -97,6 +99,8 @@ def init_parser():
     parser.add_argument('--arj_mask', dest='arj_mask', action='store_true')
     parser.add_argument('--no_arj_mask', dest='arj_mask', action='store_false')
     parser.set_defaults(no_arj_mask=True)
+
+    parser.add_argument('--calib', type=int, default=0)
 
     args = parser.parse_args()
 

@@ -2,6 +2,7 @@ import torch
 import os, sys
 import numpy as np
 import math
+import sigpy
 
 
 path_m = '/home/vanveen/ConvDecoder/masks/'
@@ -17,12 +18,12 @@ def load_arj_mask(accel, file_id):
 
     # zero pad mask from (512,80) to (512,160)
     assert mask.shape == (512,80)
-    mask_ = torch.zeros((512,160))
+    mask_ = torch.zeros((512,160), dtype=torch.uint8)
     mask_[:, 40:120] = mask
 
     return mask_
 
-def apply_mask(ksp_orig, accel, file_id, arj_mask=False):
+def apply_mask(ksp_orig, accel, file_id=None, arj_mask=False, custom_calib=None):
     ''' apply mask
         default (pre 20210405): 512x160 mask w 64x64 calibration region 
         new: 512x80 mask zero padded to 512x160, w a 24x24 calibration region '''
@@ -30,7 +31,13 @@ def apply_mask(ksp_orig, accel, file_id, arj_mask=False):
     assert ksp_orig.shape[-2:] == (512, 160)
     
     if arj_mask:
+        assert file_id
         mask = load_arj_mask(accel, file_id)
+    elif custom_calib:
+        rr = np.random.randint(0, high=21)
+        mask_fn = '{}mask_pd_{}x_calib{}_rand{}.npy'.format(path_m, accel, custom_calib, rr)
+        mask = torch.from_numpy(np.load(mask_fn))
+        mask = mask.type(torch.uint8)
     else:
         mask = torch.from_numpy(np.load('{}mask_poisson_disc_{}x.npy'.format(path_m, accel)))
     
@@ -137,32 +144,27 @@ def generate_t2_map(echo1, echo2, hdr = None, mask = None,
     # Return the T2 map and tuple for non-zero mean and std of the T2 map
     return t2map, (np.around(tmp_mean, 2), np.around(tmp_std, 2))
 
-#############################################################################
-### OLD CODE BELOW ##########################################################
-
-# pre-20210405: generate poisson disc mask
-def create_poisson_disc(accel, img_shape=(512,80), calib=(24,24), seed=None):
+def generate_poisson_disc(accel, img_shape=(512,80), calib=(24,24), seed=None):
     ''' create a poisson disc mask shape (512,80) w calib region
         zero pad to (512,160) to match qdess zero padding '''
-    
-    raise NotImplementedError('for narrow masks i.e. (512,80), \
-                               must adjust tol, max_attempts in poisson()')
 
-    # create mask
-    mask = poisson(img_shape=img_shape, accel=accel, 
-                   calib=calib, seed=seed)
-    mask = torch.from_numpy(mask)
-    mask = abs(mask).type(torch.uint8)
+    mask = sigpy.mri.samp.poisson(img_shape=img_shape, accel=accel,
+                                  calib=calib, seed=seed,
+                                  crop_corner=False, max_attempts=10)
+    mask = abs(torch.from_numpy(mask)).type(torch.uint8)
 
     accel_ = (img_shape[0]*img_shape[1]) / torch.sum(mask)
     print('given accel {}, actual accel {}'.format(
         accel, np.around(accel_,4)))
-    
+
     assert img_shape == (512,80)
     mask_ = torch.zeros((512,160))
     mask_[:, 40:120] = mask
-    
-    return mask_
+
+    return mask_.type(torch.uint8)
+
+#############################################################################
+### OLD CODE BELOW ##########################################################
 
 # rectangular calib region, performs worse than square
 def sample_rectangular_central_region(mask):
