@@ -34,7 +34,7 @@ def apply_mask(ksp_orig, accel, file_id=None, arj_mask=False, custom_calib=None)
         assert file_id
         mask = load_arj_mask(accel, file_id)
     elif custom_calib:
-        rr = np.random.randint(0, high=21)
+        rr = np.random.randint(0, high=20)
         mask_fn = '{}mask_pd_{}x_calib{}_rand{}.npy'.format(path_m, accel, custom_calib, rr)
         mask = torch.from_numpy(np.load(mask_fn))
         mask = mask.type(torch.uint8)
