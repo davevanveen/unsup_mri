@@ -4,7 +4,6 @@ import numpy as np
 import math
 import sigpy
 
-
 path_m = '/home/vanveen/ConvDecoder/masks/'
 path_m_arj = '/bmrNAS/people/arjun/data/qdess_knee_2020/masks/'
 
@@ -29,7 +28,8 @@ def apply_mask(ksp_orig, accel, file_id=None, arj_mask=False, custom_calib=None)
         new: 512x80 mask zero padded to 512x160, w a 24x24 calibration region '''
 
     assert ksp_orig.shape[-2:] == (512, 160)
-    
+   
+
     if arj_mask:
         assert file_id
         mask = load_arj_mask(accel, file_id)
