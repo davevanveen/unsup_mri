@@ -91,7 +91,6 @@ def load_qdess(file_id, idx_kx=None):
     file_in = '/bmrNAS/people/dvv/in_qdess/central_slice_in_kx/MTR_{}.npy'.format(file_id)
     
     if os.path.exists(file_in) and not idx_kx:
-        print(file_in)
         return torch.from_numpy(np.load(file_in))
     
     else:
