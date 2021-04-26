@@ -34,7 +34,7 @@ def get_mtr_ids_and(path_1, path_2):
         
     return mtr_ids_and
 
-def load_imgs(mtr_id_list, path):
+def load_imgs(mtr_id_list, path):#, flag=False):
     ''' given list of mtr_ids and a directory 
         return single array w all imgs '''
     

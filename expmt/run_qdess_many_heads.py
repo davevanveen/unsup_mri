@@ -25,10 +25,10 @@ if torch.cuda.is_available():
     dtype = torch.cuda.FloatTensor
 
 TEST_SET = ['005', '006', '030', '034', '048', '052', '065', '066', '080', 
-            '096', '099', '120']#, '144', '156', '158', '173', '176', '178', 
-            #'188', '196', '198', '199', '218', '219', '221', '223',
-            #'224', '227', '235', '237', '240', '241', '244', '248']
-ACCEL_LIST = [4]#, 8] 
+            '096', '099', '120', '144', '156', '158', '173', '176', '178', 
+            '188', '196', '198', '199', '218', '219', '221', '223',
+            '224', '227', '235', '237', '240', '241', '244', '248']
+ACCEL_LIST = [4, 8] 
 
 
 def run_expmt(args):
@@ -68,31 +68,31 @@ def run_expmt(args):
             im_out = reshape_adj_channels_to_complex_vals(im_out[0]) # complex tensor dim (nc, kx, ky)
             
             # from now on, 1/2's are redundant. delete all lines after sanity check
-            im_out1 = reshape_adj_channels_to_complex_vals(im_out1[0]) # complex tensor dim (nc, kx, ky)
-            im_out2 = reshape_adj_channels_to_complex_vals(im_out2[0]) # complex tensor dim (nc, kx, ky)
+            #im_out1 = reshape_adj_channels_to_complex_vals(im_out1[0]) 
+            #im_out2 = reshape_adj_channels_to_complex_vals(im_out2[0]) 
 
             # perform dc step
             ksp_est = fft_2d(im_out)
             ksp_dc = torch.where(mask, ksp_masked, ksp_est)
             np.save('{}/MTR_{}_ksp_dc.npy'.format(path_out, file_id), ksp_dc.detach().numpy())
-            ksp_est1 = fft_2d(im_out1)
-            ksp_est2 = fft_2d(im_out2)
-            ksp_dc1 = torch.where(mask, ksp_masked, ksp_est1)
-            ksp_dc2 = torch.where(mask, ksp_masked, ksp_est2)
+            #ksp_est1 = fft_2d(im_out1)
+            #ksp_est2 = fft_2d(im_out2)
+            #ksp_dc1 = torch.where(mask, ksp_masked, ksp_est1)
+            #ksp_dc2 = torch.where(mask, ksp_masked, ksp_est2)
 
             # create data-consistent, ground-truth images from k-space
             im_1_dc = root_sum_squares(ifft_2d(ksp_dc[:8])).detach()
             im_2_dc = root_sum_squares(ifft_2d(ksp_dc[8:])).detach()
             np.save('{}MTR_{}_e1.npy'.format(path_out, file_id), im_1_dc)
             np.save('{}MTR_{}_e2.npy'.format(path_out, file_id), im_2_dc)
-            im_1_dc1 = root_sum_squares(ifft_2d(ksp_dc1[:8])).detach()
-            im_2_dc1 = root_sum_squares(ifft_2d(ksp_dc1[8:])).detach()
-            im_1_dc2 = root_sum_squares(ifft_2d(ksp_dc2[:8])).detach()
-            im_2_dc2 = root_sum_squares(ifft_2d(ksp_dc2[8:])).detach()
-            im_1_dc_ = torch.mean(torch.stack([im_1_dc1, im_1_dc2]), dim=0)
-            im_2_dc_ = torch.mean(torch.stack([im_2_dc1, im_2_dc2]), dim=0)
-            np.save('{}MTR_{}_e1_.npy'.format(path_out, file_id), im_1_dc_)
-            np.save('{}MTR_{}_e2_.npy'.format(path_out, file_id), im_2_dc_)
+            #im_1_dc1 = root_sum_squares(ifft_2d(ksp_dc1[:8])).detach()
+            #im_2_dc1 = root_sum_squares(ifft_2d(ksp_dc1[8:])).detach()
+            #im_1_dc2 = root_sum_squares(ifft_2d(ksp_dc2[:8])).detach()
+            #im_2_dc2 = root_sum_squares(ifft_2d(ksp_dc2[8:])).detach()
+            #im_1_dc_ = torch.mean(torch.stack([im_1_dc1, im_1_dc2]), dim=0)
+            #im_2_dc_ = torch.mean(torch.stack([im_2_dc1, im_2_dc2]), dim=0)
+            #np.save('{}MTR_{}_e1_.npy'.format(path_out, file_id), im_1_dc_)
+            #np.save('{}MTR_{}_e2_.npy'.format(path_out, file_id), im_2_dc_)
 
             # save gt w proper array scaling if dne
             if not os.path.exists('{}MTR_{}_e1_gt.npy'.format(args.path_gt, file_id)):
