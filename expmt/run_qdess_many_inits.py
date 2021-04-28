@@ -28,9 +28,9 @@ TEST_SET = ['005', '006', '030', '034', '048', '052', '065', '066', '080',
             '096', '099', '120']#, '144', '156', '158', '173', '176', '178', 
             #'188', '196', '198', '199', '218', '219', '221', '223',
             #'224', '227', '235', '237', '240', '241', '244', '248']
-ACCEL_LIST = [4, 8] # 4, 6, 8]
+ACCEL_LIST = [4]#, 8]
 
-NUM_INITS = 5
+NUM_INITS = 4
 
 def run_expmt(args):
 
@@ -58,7 +58,7 @@ def run_expmt(args):
                 net, net_input, ksp_orig_ = init_convdecoder(ksp_orig, fix_random_seed=False) 
 
                 # apply mask after rescaling k-space. want complex tensors dim (nc, ky, kz)
-                ksp_masked, mask = apply_mask(ksp_orig_, accel)
+                ksp_masked, mask = apply_mask(ksp_orig_, accel, custom_calib=args.calib)
                 im_masked = ifft_2d(ksp_masked)
 
                 # fit network, get net output - default 10k iterations, lam_tv=1e-8
@@ -97,6 +97,7 @@ def init_parser():
     parser.add_argument('--file_id_list', nargs='+', default=TEST_SET)
     parser.add_argument('--dir_out', type=str, default='')
     parser.add_argument('--num_iter', type=int, default=10000)
+    parser.add_argument('--calib', type=int, default=64)
     
     args = parser.parse_args()
 
