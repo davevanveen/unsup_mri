@@ -7,7 +7,7 @@ MRI recon using unsupervised neural networks
 ### List of contents
 * [Setup and installation](#Setup-and-installation) <br>
 * [Dataset](#Dataset) <br>
-* [Running the code](#Running-the-code) <br>
+* [Demo](#Demo) <br>
 * [References](#References) <br>
 * [License](#License)
 ***
