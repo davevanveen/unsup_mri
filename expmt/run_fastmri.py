@@ -1,28 +1,17 @@
+#!/usr/bin/env python
+
 import os, sys
-import h5py
 import numpy as np
 import torch
-import matplotlib.pyplot as plt
-import time
 
-sys.path.append('/home/vanveen/ConvDecoder/')
-from utils.data_io import load_h5, get_mask, num_params
+from utils.data_io import get_mask
 from include.decoder_conv import init_convdecoder
 from include.fit import fit
-from include.subsample import MaskFunc
-from utils.evaluate import calc_metrics
 from utils.transform import fft_2d, ifft_2d, root_sum_squares, \
-                            reshape_complex_vals_to_adj_channels, \
                             reshape_adj_channels_to_complex_vals, \
                             crop_center
 
-if torch.cuda.is_available():
-    torch.backends.cudnn.enabled = True
-    torch.backends.cudnn.benchmark = True
-    dtype = torch.cuda.FloatTensor
-    torch.cuda.set_device(2)
-else:
-    dtype = torch.FloatTensor
+dtype = torch.cuda.FloatTensor
 
 dim = 320
 SCALE_FAC = 0.1 # TODO: check if this is necessary 

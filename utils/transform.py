@@ -1,9 +1,6 @@
 ''' various functions for data transformations '''
 
-import os, sys
-import numpy as np
 import torch
-from torch.autograd import Variable
 from torch.fft import fftn, ifftn
 
 

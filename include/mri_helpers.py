@@ -1,5 +1,4 @@
 import torch 
-import os, sys
 import numpy as np
 import math
 import sigpy
@@ -188,14 +187,3 @@ def sample_rectangular_central_region(mask):
     mask[mid_y-len_y:mid_y+len_y, mid_z-len_z:mid_z+len_z] = 1
 
     return mask
-
-# unnecessary w calib arg in poisson
-def sample_square_central_region(mask, C=24):
-    ''' force calibration CxC region to be 1's'''
-
-    idx_y, idx_z = mask.shape[0] // 2, mask.shape[1] // 2
-    C_ = C // 2
-    mask[idx_y-C_:idx_y+C_, idx_z-C_:idx_z+C_] = 1
-
-    return mask
-

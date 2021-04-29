@@ -1,18 +1,12 @@
-import os, sys
-import h5py
+import sys
 import numpy as np
 import torch
-import matplotlib.pyplot as plt
-import time
 
 sys.path.append('/home/vanveen/ConvDecoder/')
-from utils.data_io import load_h5, get_mask, num_params
+from utils.data_io import get_mask, load_h5
 from include.decoder_conv import init_convdecoder
 from include.fit import fit
-from include.subsample import MaskFunc
-from utils.evaluate import calc_metrics
 from utils.transform import fft_2d, ifft_2d, root_sum_squares, \
-                            reshape_complex_vals_to_adj_channels, \
                             reshape_adj_channels_to_complex_vals, \
                             crop_center
 

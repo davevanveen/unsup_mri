@@ -1,9 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import numpy as np
-import PIL
-from copy import copy
 from torch.autograd import Variable
 
 from utils.transform import reshape_adj_channels_to_complex_vals, \
@@ -128,6 +125,9 @@ def get_scale_factor(net, net_input, ksp_orig):
     orig_img = root_sum_squares(orig)
 
     return torch.linalg.norm(out_img) / torch.linalg.norm(orig_img)
+
+###### OLD CODE BELOW ####################################################
+### old model which shared layers -- introduced checkerboard artifacts ###
 
 #class Conv_Model_Old(nn.Module):
 #    def __init__(self, num_layers, num_channels, out_depth, hidden_size,

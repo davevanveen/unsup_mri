@@ -1,42 +1,10 @@
-from torch.autograd import Variable
-import torch
 import copy
-import numpy as np
-import os, sys
-import time
-
-from .transforms import *
-sys.path.append('/home/vanveen/ConvDecoder/')
-from utils.transform import fft_2d, ifft_2d, root_sum_squares, \
-                            reshape_complex_vals_to_adj_channels, \
+import torch
+from utils.transform import fft_2d, ifft_2d, reshape_complex_vals_to_adj_channels, \
                             reshape_adj_channels_to_complex_vals
+
 dtype = torch.cuda.FloatTensor
 
-def sqnorm(a):
-    return np.sum( a*a )
-
-def get_distances(initial_maps,final_maps):
-    results = []
-    for a,b in zip(initial_maps,final_maps):
-        res = sqnorm(a-b)/(sqnorm(a) + sqnorm(b))
-        results += [res]
-    return(results)
-
-def get_weights(net):
-    weights = []
-    for m in net.modules():
-        if isinstance(m, nn.Conv2d):
-            weights += [m.weight.data.cpu().numpy()]
-    return weights
-
-class MSLELoss(torch.nn.Module):
-    def __init__(self):
-        super(MSLELoss,self).__init__()
-
-    def forward(self,x,y):
-        criterion = nn.MSELoss()
-        loss = torch.log(criterion(x, y))
-        return loss
 
 def fit(ksp_masked, img_masked, net, net_input, mask, mask2=None,
         num_iter=10000, lr=0.01, img_ls=None, dtype=torch.cuda.FloatTensor, 
@@ -141,13 +109,3 @@ def forwardm(img, mask, mask2=None):
     img_masked_ = ifft_2d(ksp_masked_)
 
     return reshape_complex_vals_to_adj_channels(img_masked_)[None, :]
-
-#def forwardm_ksp(img, mask):
-#    ''' convert img --> ksp (must be complex for fft), apply mask
-#        input, output should have dim [2*nc,x,y] '''
-#
-#    img = reshape_adj_channels_to_complex_vals(img[0]) 
-#    ksp = fft_2d(img).cuda()
-#    ksp_masked_ = ksp * mask
-#    
-#    return reshape_complex_vals_to_adj_channels(ksp_masked_)

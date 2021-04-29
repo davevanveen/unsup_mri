@@ -1,28 +1,18 @@
+#!/usr/bin/env python
+
 import os, sys
 import numpy as np
-from os import listdir
-from os.path import isfile, join
-import matplotlib.pyplot as plt
-import h5py
-import sigpy
-from sigpy.mri.samp import poisson
 import torch
 import argparse
 
-sys.path.append('/home/vanveen/ConvDecoder/')
-from utils.data_io import load_qdess, num_params
 from include.decoder_conv import init_convdecoder
 from include.fit_many_heads import fit
-from include.mri_helpers import apply_mask, apply_dual_mask
-from utils.evaluate import calc_metrics
+from include.mri_helpers import apply_mask
+from utils.data_io import load_qdess
 from utils.transform import fft_2d, ifft_2d, root_sum_squares, \
-                            reshape_complex_vals_to_adj_channels, \
                             reshape_adj_channels_to_complex_vals
 
-if torch.cuda.is_available():
-    torch.backends.cudnn.enabled = True
-    torch.backends.cudnn.benchmark = True
-    dtype = torch.cuda.FloatTensor
+dtype = torch.cuda.FloatTensor
 
 TEST_SET = ['005', '006', '030', '034', '048', '052', '065', '066', '080', 
             '096', '099', '120', '144', '156', '158', '173', '176', '178', 
