@@ -16,9 +16,9 @@ MRI recon using unsupervised neural networks
 
 The following packages are required to reproduce the experiments. Assuming the experiment is being performed in a docker container or a linux machine, the following libraries and packages need to be installed.
 
-	apt-get update
-	apt-get install python3.8
-	pip install -r requirements.txt
+		apt-get update
+		apt-get install python3.8
+		pip install -r requirements.txt
 
 Also install pytorch [here](https://pytorch.org/) according to your system specifications. If pip does not come automatically with your version of python, install manually [here](https://ehmatthes.github.io/pcc/chapter_12/installing_pip.html).
 
