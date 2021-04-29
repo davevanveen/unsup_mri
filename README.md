@@ -29,8 +29,8 @@ Also install pytorch [here](https://pytorch.org/) according to your system speci
 ## Datasets
 Experiments are performed on either the 2D [FastMRI](https://fastmri.org/dataset) dataset or an internal 3D MRI dataset. We note this reconstruction process can be applied on any image dataset, although the MRI-specific processing would need to be changed.
 
-## Running the code
-You may simply clone this repository and run the script `run_fastmri.py` to reproduce the results. **Note** that you need to download the [FastMRI](https://fastmri.org/dataset) dataset and change the **data path** (when loading the measurements) in each notebook accordingly, provided that you intend to run the code for MRI data (for MRI data, all of our experiments are performed on the validation sets--either single-coil or multi-coil).
+## Demo
+See `demo/demo.ipynb` to run a simplified example. Additional functionality will be added shortly. 
 
 ## References
 ''Can Un-trained Neural Networks Compete with Trained Neural Networks at Image Reconstruction?,'' by Mohammad Zalbagi Darestani and Reinhard Heckel
