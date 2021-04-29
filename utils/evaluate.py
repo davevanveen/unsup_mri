@@ -1,25 +1,45 @@
 ''' various functions for computing image quality metrics '''
-import argparse
-import pathlib
-from argparse import ArgumentParser
 
 import h5py
 import scipy
 import numpy as np
 import torch
+import matplotlib.pyplot as plt
+
 from runstats import Statistics
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 from pytorch_msssim import ms_ssim
 
 
-def calc_metrics(img_gt, img_out, imgs_already_normed=False):
+def calc_metrics_imgs(imgs_gt, imgs_out):
+    ''' given (gt, out) imgs over many qdess samples / echos
+        compute metrics for each '''
+    
+    assert imgs_gt.shape == imgs_out.shape
+    assert imgs_gt.shape[-2:] == (512, 160)
+    assert imgs_gt.ndim == 4
+    
+    num_samps = imgs_gt.shape[0]
+    num_echos = imgs_gt.shape[1]
+    num_metrics = 4 # vif, msssim, ssim, psnr
+    
+    metrics = np.empty((num_samps, num_echos, num_metrics))
+    
+    for idx_s in np.arange(num_samps):
+        for idx_e in np.arange(num_echos):
+            
+            im_gt, im_out = imgs_gt[idx_s, idx_e], imgs_out[idx_s, idx_e]
+            metrics[idx_s, idx_e] = np.array(calc_metrics(im_gt, im_out))
+            
+    return np.around(metrics, decimals=4)
+
+def calc_metrics(img_gt, img_out):
     ''' compute vif, mssim, ssim, and psnr of img_out using img_gt as ground-truth reference 
         note: for msssim, made a slight mod to source code in line 200 of 
               /home/vanveen/heck/lib/python3.8/site-packages/pytorch_msssim/ssim.py 
               to compute msssim over images w smallest dim >=160 '''
 
-    if not imgs_already_normed:
-        img_gt, img_out = norm_imgs(img_gt, img_out)
+    img_gt, img_out = norm_imgs(img_gt, img_out)
     img_gt, img_out = np.array(img_gt), np.array(img_out)
 
     vif_ = vifp_mscale(img_gt, img_out, sigma_nsq=img_out.mean())
@@ -51,17 +71,31 @@ def norm_imgs(img_gt, img_out):
     
     return img_gt, img_out
 
-# TODO: merge this with norm_imgs() above
-def normalize_img(img_gt, img_out):
-    ''' normalize the pixel values in img_out according to (mean, std) of img_gt
-        verified: step is necessary '''
+def scale_0_1(arr):
+    ''' given any array, map it to [0,1] range '''
+    return (arr - arr.min()) * (1. / arr.max())
 
-    img_out = (img_out - img_out.mean()) / img_out.std()
-    img_out *= img_gt.std()
-    img_out += img_gt.mean()
+def plot_row_qdess(arr_list, title_list=None, clim_list=None):
+    ''' given list of imgs, plot a single row for comparison
+        e.g. arr_list=[im_gt, im_1, im_2]
+             titel_list=[gt, method 1, method 2] '''
 
-    return img_out
+    SF = 2.56 # stretch factor
+    NUM_COLS = len(arr_list)
+    if not title_list:
+        title_list = NUM_COLS * ['']
 
+    fig = plt.figure(figsize=(10,10))
+
+    for idx in range(NUM_COLS):
+        ax = fig.add_subplot(1,NUM_COLS,idx+1)
+        ax.imshow(arr_list[idx], cmap='gray', \
+                  clim=clim_list[idx], aspect=1./SF)
+        ax.set_title(title_list[idx], fontsize=20)
+        ax.axis('off')
+
+##############################################################
+# below contains wrapper functions for computing quant metrics 
 def mse(gt, pred):
     """ Compute Mean Squared Error (MSE) """
     return np.mean((gt - pred) ** 2)
@@ -187,21 +221,3 @@ def evaluate(args, recons_key):
             recons = recons['reconstruction'].value
             metrics.push(target, recons)
     return metrics
-
-
-if __name__ == '__main__':
-    parser = ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--target-path', type=pathlib.Path, required=True,
-                        help='Path to the ground truth data')
-    parser.add_argument('--predictions-path', type=pathlib.Path, required=True,
-                        help='Path to reconstructions')
-    parser.add_argument('--challenge', choices=['singlecoil', 'multicoil'], required=True,
-                        help='Which challenge')
-    parser.add_argument('--acquisition', choices=['CORPD_FBK', 'CORPDFS_FBK'], default=None,
-                        help='If set, only volumes of the specified acquisition type are used '
-                             'for evaluation. By default, all volumes are included.')
-    args = parser.parse_args()
-
-    recons_key = 'reconstruction_rss' if args.challenge == 'multicoil' else 'reconstruction_esc'
-    metrics = evaluate(args, recons_key)
-    print(metrics)

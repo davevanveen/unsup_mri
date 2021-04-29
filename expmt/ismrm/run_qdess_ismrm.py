@@ -1,20 +1,11 @@
-import os, sys
+import sys
 import numpy as np
-from os import listdir
-from os.path import isfile, join
-import matplotlib.pyplot as plt
 import h5py
-import sigpy
-from sigpy.mri.samp import poisson
 import torch
 
-sys.path.append('/home/vanveen/ConvDecoder/')
-from utils.data_io import num_params
 from include.decoder_conv import init_convdecoder
 from include.fit import fit
-from utils.evaluate import calc_metrics
 from utils.transform import fft_2d, ifft_2d, root_sum_squares, \
-                            reshape_complex_vals_to_adj_channels, \
                             reshape_adj_channels_to_complex_vals
 
 if torch.cuda.is_available():

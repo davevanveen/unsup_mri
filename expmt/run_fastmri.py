@@ -1,34 +1,23 @@
+#!/usr/bin/env python
+
+# TODO's
+# - update script functionality per qdess, e.g. command line tools
+# - check scaling factor of ksp_masked
+
 import os, sys
-import h5py
 import numpy as np
 import torch
-import matplotlib.pyplot as plt
-import time
 
-sys.path.append('/home/vanveen/ConvDecoder/')
-from utils.data_io import load_h5, get_mask, num_params
+from utils.data_io import get_mask
 from include.decoder_conv import init_convdecoder
 from include.fit import fit
-from include.subsample import MaskFunc
-from utils.evaluate import calc_metrics
 from utils.transform import fft_2d, ifft_2d, root_sum_squares, \
-                            reshape_complex_vals_to_adj_channels, \
                             reshape_adj_channels_to_complex_vals, \
                             crop_center
 
-if torch.cuda.is_available():
-    torch.backends.cudnn.enabled = True
-    torch.backends.cudnn.benchmark = True
-    dtype = torch.cuda.FloatTensor
-    torch.cuda.set_device(2)
-else:
-    dtype = torch.FloatTensor
-
-dim = 320
-SCALE_FAC = 0.1 # TODO: check if this is necessary 
-NUM_ITER = 10000
-
+dtype = torch.cuda.FloatTensor
 path_out = '/bmrNAS/people/dvv/out_fastmri/'
+dim = 320
 
 def run_expmt(file_id_list):
 
@@ -44,12 +33,9 @@ def run_expmt(file_id_list):
 
         net, net_input, ksp_orig_ = init_convdecoder(ksp_orig, mask)
 
-        ksp_masked = SCALE_FAC * ksp_orig_ * mask 
-        img_masked = ifft_2d(ksp_masked)
+        ksp_masked = 0.1 * ksp_orig_ * mask 
 
-        net, mse_wrt_ksp, mse_wrt_img = fit(
-            ksp_masked=ksp_masked, img_masked=img_masked,
-            net=net, net_input=net_input, mask2d=mask, num_iter=NUM_ITER)
+        net = fit(ksp_masked, net, net_input, mask)
 
         img_out = net(net_input.type(dtype))
         img_out = reshape_adj_channels_to_complex_vals(img_out[0])

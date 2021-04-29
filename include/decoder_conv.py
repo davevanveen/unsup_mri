@@ -1,9 +1,6 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import numpy as np
-import PIL
-from copy import copy
 from torch.autograd import Variable
 
 from utils.transform import reshape_adj_channels_to_complex_vals, \
@@ -53,13 +50,13 @@ class Conv_Model(nn.Module):
         # to return feat_maps, see Conv_Model_Old() at bottom of file
         return self.net(x)
 
-def init_convdecoder(ksp_orig, mask, \
-                     in_size=[8,4], num_layers=8, num_channels=160, kernel_size=3):
+def init_convdecoder(ksp_orig, \
+                     in_size=[8,4], num_layers=8, num_channels=160, kernel_size=3,
+                     fix_random_seed=True):
     ''' wrapper function for initializing convdecoder based on input ksp_orig
 
         parameters:
                 ksp_orig: original, unmasked k-space measurements
-                mask: mask used to downsample original k-space
         return:
                 net: initialized convdecoder
                 net_input: random, scaled input seed
@@ -69,13 +66,14 @@ def init_convdecoder(ksp_orig, mask, \
     out_depth = ksp_orig.shape[0]*2 # 2*n_c, i.e. 2*15=30 if multi-coil
     hidden_size = get_hidden_size(in_size, out_size, num_layers) # list of intermed layer sizes
 
-    torch.manual_seed(0)
+    if fix_random_seed:
+        torch.manual_seed(0)
 
     net = Conv_Model(num_layers, num_channels, out_depth, hidden_size).type(dtype)
 
 #     print('# parameters of ConvDecoder:',num_params(net))
 
-    net_input = get_net_input(num_channels, in_size)
+    net_input = get_net_input(num_channels, in_size, fix_random_seed)
     
     # create scaled ksp to be compatible w network magnitude
     scale_factor = get_scale_factor(net, net_input, ksp_orig)
@@ -100,12 +98,13 @@ def get_hidden_size(in_size, out_size, num_layers):
 
     return hidden_size
 
-def get_net_input(num_channels, in_size):
+def get_net_input(num_channels, in_size, fix_random_seed=True):
     ''' return net_input, e.g. tensor w values samples uniformly on [0,1] '''
     
     shape = [1, num_channels, in_size[0], in_size[1]]
     net_input = Variable(torch.zeros(shape)).type(dtype)
-    torch.manual_seed(0)
+    if fix_random_seed:
+        torch.manual_seed(0)
     net_input.data.uniform_()
 
     return net_input
@@ -126,6 +125,9 @@ def get_scale_factor(net, net_input, ksp_orig):
     orig_img = root_sum_squares(orig)
 
     return torch.linalg.norm(out_img) / torch.linalg.norm(orig_img)
+
+###### OLD CODE BELOW ####################################################
+### old model which shared layers -- introduced checkerboard artifacts ###
 
 #class Conv_Model_Old(nn.Module):
 #    def __init__(self, num_layers, num_channels, out_depth, hidden_size,
