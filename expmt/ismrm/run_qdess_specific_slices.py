@@ -3,7 +3,6 @@ import numpy as np
 import h5py
 import torch
 
-sys.path.append('/home/vanveen/ConvDecoder/')
 from include.decoder_conv import init_convdecoder
 from include.fit import fit
 from utils.transform import fft_2d, ifft_2d, root_sum_squares, \

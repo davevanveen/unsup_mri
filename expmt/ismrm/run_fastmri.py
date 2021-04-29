@@ -2,7 +2,6 @@ import sys
 import numpy as np
 import torch
 
-sys.path.append('/home/vanveen/ConvDecoder/')
 from utils.data_io import get_mask, load_h5
 from include.decoder_conv import init_convdecoder
 from include.fit import fit

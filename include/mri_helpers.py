@@ -3,7 +3,7 @@ import numpy as np
 import math
 import sigpy
 
-path_m = '/home/vanveen/ConvDecoder/masks/'
+path_m = '/home/vanveen/unsup_mri/masks/'
 
 def apply_mask(ksp_orig, accel, custom_calib=None):
     ''' apply mask
@@ -32,7 +32,9 @@ def apply_mask(ksp_orig, accel, custom_calib=None):
 def apply_dual_mask(ksp_orig, accel):
     ''' given echo1, echo2 concatenated together 
         apply a separate mask to each '''
-    
+   
+    raise NotImplementedError('first, re-generate masks w new sampling pattern')
+
     assert ksp_orig.shape == (16, 512, 160)
     
     mask1 = torch.from_numpy(np.load('{}mask_poisson_disc_{}x_v1.npy'.format(path_m, accel)))
