@@ -1,4 +1,4 @@
-import os
+import os.path
 from os import listdir
 from os.path import isfile, join
 import numpy as np
@@ -69,8 +69,13 @@ def num_params(net):
     ''' given network, return total number of params '''
     return sum([np.prod(list(p.size())) for p in net.parameters()]);
 
-def load_h5_fastmri(file_id, slice_idx=None):
+def load_h5_fastmri(file_id, slice_idx=None, demo=False):
     ''' given file_id, return the h5 file and central slice '''
+
+    if demo: # load k-space of central slice from fastmri sample 1000000
+        path_in = os.path.abspath(os.path.join(os.path.dirname(__file__),'..'))# + '/data/'
+        #path_in = '../demo/data/input_kspace.npy'
+        return torch.from_numpy(np.load(path_in + '/demo/data/in_ksp.npy'))
 
     path_in = '/bmrNAS/people/dvv/multicoil_val/'
     filename = '{}file{}.h5'.format(path_in, file_id)
@@ -84,9 +89,12 @@ def load_h5_fastmri(file_id, slice_idx=None):
 
     return f, slice_ksp
 
-def load_qdess(file_id, idx_kx=None):
+def load_qdess(file_id, idx_kx=None, sample=False):
     ''' load qdess w shortcut if pre-saved npy slice exists 
         default idx_kx is central in kx (axial) b/c we undersample in (ky,kz)'''
+
+    if sample:
+        raise NotImplementedError('data not publically available')
 
     file_in = '/bmrNAS/people/dvv/in_qdess/central_slice_in_kx/MTR_{}.npy'.format(file_id)
     

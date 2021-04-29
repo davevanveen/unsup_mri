@@ -1,6 +1,5 @@
 .ipynb_checkpoints/
 *.pyc
-*.npy
 *.png
 *.pdf
 *.txt
@@ -9,6 +8,8 @@
 *.csv
 *.dcm
 *.json
+masks/
+old/
 ipynb/old/
 include/old/
 expmt/old/

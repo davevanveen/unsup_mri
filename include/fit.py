@@ -6,7 +6,7 @@ from utils.transform import fft_2d, ifft_2d, reshape_complex_vals_to_adj_channel
 dtype = torch.cuda.FloatTensor
 
 
-def fit(ksp_masked, img_masked, net, net_input, mask, mask2=None,
+def fit(ksp_masked, net, net_input, mask, mask2=None,
         num_iter=10000, lr=0.01, img_ls=None, dtype=torch.cuda.FloatTensor, 
         LAMBDA_TV=1e-8):
     ''' fit a network to masked k-space measurement
@@ -38,6 +38,8 @@ def fit(ksp_masked, img_masked, net, net_input, mask, mask2=None,
     p = [x for x in net.parameters()]
     optimizer = torch.optim.Adam(p, lr=lr,weight_decay=0)
     mse = torch.nn.MSELoss()
+
+    img_masked = ifft_2d(ksp_masked)
 
     # convert complex [nc,x,y] --> real [2*nc,x,y] to match w net output
     ksp_masked = reshape_complex_vals_to_adj_channels(ksp_masked).cuda()
