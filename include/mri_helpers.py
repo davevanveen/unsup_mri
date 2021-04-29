@@ -1,9 +1,12 @@
+''' mri-specific helper functions '''
+
+import os.path
 import torch 
 import numpy as np
 import math
 import sigpy
 
-path_m = '/home/vanveen/unsup_mri/masks/'
+path_m = os.path.abspath(os.path.join(os.path.dirname(__file__),'..')) + '/masks/'
 
 def apply_mask(ksp_orig, accel, custom_calib=None):
     ''' apply mask
@@ -16,10 +19,10 @@ def apply_mask(ksp_orig, accel, custom_calib=None):
 
         if custom_calib == 999: # sample calibration region, nothing else
             # for 4x: 128x80 1's. for 8x: 72x72 1's
-            mask_fn = '{}mask_pd_{}x_calib_max.npy'.format(path_m, accel)
+            mask_fn = '{}/mask_pd_{}x_calib_max.npy'.format(path_m, accel)
         else:
             rr = np.random.randint(0, high=20)
-            mask_fn = '{}mask_pd_{}x_calib{}_rand{}.npy'.format(path_m, accel, 
+            mask_fn = '{}mask_pd_{}x_calib{}_rand{}.npy'.format(path_m, accel,
                                                             custom_calib, rr)
         mask = torch.from_numpy(np.load(mask_fn))
         mask = mask.type(torch.uint8)
