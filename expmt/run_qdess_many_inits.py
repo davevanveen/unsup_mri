@@ -52,8 +52,7 @@ def run_expmt(args):
                 im_masked = ifft_2d(ksp_masked)
 
                 # fit network, get net output - default 10k iterations, lam_tv=1e-8
-                net = fit(ksp_masked=ksp_masked, img_masked=im_masked,
-                          net=net, net_input=net_input, mask=mask, num_iter=args.num_iter)
+                net = fit(ksp_masked, net, net_input, mask, num_iter=args.num_iter)
                 im_out = net(net_input.type(dtype)) # real tensor dim (2*nc, kx, ky)
                 im_out = reshape_adj_channels_to_complex_vals(im_out[0]) # complex tensor dim (nc, kx, ky)
                 # perform dc step
