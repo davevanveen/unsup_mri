@@ -34,7 +34,6 @@ You may simply clone this repository and run the script `run_fastmri.py` to repr
 
 ## References
 ''Can Un-trained Neural Networks Compete with Trained Neural Networks at Image Reconstruction?,'' by Mohammad Zalbagi Darestani and Reinhard Heckel
-***
 
 ## License
 This project is covered by **Apache 2.0 License**.
