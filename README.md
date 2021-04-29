@@ -5,26 +5,24 @@ MRI recon using unsupervised neural networks
 
 ***
 ### List of contents
-* [Setup and installation](#Setup-and-installation) <br>
+* [Setup](#Setup) <br>
 * [Dataset](#Dataset) <br>
 * [Demo](#Demo) <br>
 * [References](#References) <br>
 * [License](#License)
 ***
 
-## Setup and installation
+## Setup
 
-#### OS requirements
-The code has been tested on Linux: Ubuntu 16.04.5
-
-#### Python dependencies
 The following packages are required to reproduce the experiments. Assuming the experiment is being performed in a docker container or a linux machine, the following libraries and packages need to be installed.
 
         apt-get update
         apt-get install python3.8
-	pip install -r requirements.txt
+		pip install -r requirements.txt
 
 Also install pytorch [here](https://pytorch.org/) according to your system specifications. If pip does not come automatically with your version of python, install manually [here](https://ehmatthes.github.io/pcc/chapter_12/installing_pip.html).
+
+This was tested on Linux: Ubuntu 16.04.5
 
 ## Datasets
 Experiments are performed on either the 2D [FastMRI](https://fastmri.org/dataset) dataset or an internal 3D MRI dataset. We note this reconstruction process can be applied on any image dataset, although the MRI-specific processing would need to be changed.
