@@ -99,6 +99,6 @@ if __name__ == '__main__':
     
     args = init_parser()
 
-    torch.cuda.set_device(args.gpu_id)
+    #torch.cuda.set_device(args.gpu_id)
 
     run_expmt(args)

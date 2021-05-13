@@ -167,6 +167,9 @@ def vifp_mscale(ref, dist, sigma_nsq=1, eps=1e-10):
 
     return vifp
 
+################################################################################
+######## likely deprecated functions below #####################################
+
 METRIC_FUNCS = dict(
     MSE=mse,
     NMSE=nmse,
@@ -174,7 +177,6 @@ METRIC_FUNCS = dict(
     SSIM=ssim,
     VIF=vifp_mscale,
 )
-
 
 class Metrics:
     """
@@ -221,3 +223,36 @@ def evaluate(args, recons_key):
             recons = recons['reconstruction'].value
             metrics.push(target, recons)
     return metrics
+
+def get_mu_diff(path_bl, path_new, inits_bl=None, inits_new=None):
+    ''' get diff in metrics between two paths '''
+    
+    mtr_id_list = get_mtr_ids_and(path_bl, path_new)
+
+    imgs_gt = load_imgs(mtr_id_list, path=path_gt)
+    
+    if 'many_inits' in path_bl:
+        imgs_bl = load_imgs_many_inits(mtr_id_list, path_bl, 
+                                        num_inits=inits_bl,
+                                        avg_inits=True)
+    else:
+        imgs_bl = load_imgs(mtr_id_list, path=path_bl)
+    
+    if 'many_inits' in path_new:
+        imgs_new = load_imgs_many_inits(mtr_id_list, path_new, 
+                                        num_inits=inits_new,
+                                        avg_inits=True)
+    else:
+        imgs_new = load_imgs(mtr_id_list, path=path_new)
+
+    metrics_bl = calc_metrics_imgs(imgs_gt, imgs_bl)
+    metrics_new = calc_metrics_imgs(imgs_gt, imgs_new)
+    
+    mu_bl = np.around(np.mean(metrics_bl, 0), 4)
+    mu_new = np.around(np.mean(metrics_new, 0), 4)
+    
+    # perc improvement for each metrics, avg across echos
+    mu_perc = mu_new / mu_bl
+    mu_perc = np.mean(mu_perc, axis=0)
+    
+    return mu_perc, metrics_bl, metrics_new
