@@ -10,6 +10,8 @@ from runstats import Statistics
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 from pytorch_msssim import ms_ssim
 
+from utils.hfen import HFENLoss
+from utils.data_io import get_mtr_ids_and, load_imgs, load_imgs_many_inits
 
 def calc_metrics_imgs(imgs_gt, imgs_out):
     ''' given (gt, out) imgs over many qdess samples / echos
@@ -21,19 +23,21 @@ def calc_metrics_imgs(imgs_gt, imgs_out):
     
     num_samps = imgs_gt.shape[0]
     num_echos = imgs_gt.shape[1]
-    num_metrics = 4 # vif, msssim, ssim, psnr
+    num_metrics = 5 # vif, msssim, ssim, psnr
     
     metrics = np.empty((num_samps, num_echos, num_metrics))
     
+    hfen = HFENLoss()
+
     for idx_s in np.arange(num_samps):
         for idx_e in np.arange(num_echos):
             
             im_gt, im_out = imgs_gt[idx_s, idx_e], imgs_out[idx_s, idx_e]
-            metrics[idx_s, idx_e] = np.array(calc_metrics(im_gt, im_out))
+            metrics[idx_s, idx_e] = np.array(calc_metrics(im_gt, im_out, hfen))
             
     return np.around(metrics, decimals=4)
 
-def calc_metrics(img_gt, img_out):
+def calc_metrics(img_gt, img_out, hfen):
     ''' compute vif, mssim, ssim, and psnr of img_out using img_gt as ground-truth reference 
         note: for msssim, made a slight mod to source code in line 200 of 
               /home/vanveen/heck/lib/python3.8/site-packages/pytorch_msssim/ssim.py 
@@ -50,7 +54,9 @@ def calc_metrics(img_gt, img_out):
     img_gt_ = torch.from_numpy(np.array([[img_gt]]))
     msssim_ = float(ms_ssim(img_out_, img_gt_, data_range=img_gt_.max()))
 
-    return vif_, msssim_, ssim_, psnr_
+    hfen_ = 10000 * float(hfen(img_gt_.float(), img_out_.float()))
+
+    return vif_, msssim_, ssim_, psnr_, hfen_
 
 def norm_imgs(img_gt, img_out):
     ''' first, normalize ground-truth img_gt to be on range [0,.1] 
@@ -224,7 +230,7 @@ def evaluate(args, recons_key):
             metrics.push(target, recons)
     return metrics
 
-def get_mu_diff(path_bl, path_new, inits_bl=None, inits_new=None):
+def get_mu_diff(path_gt, path_bl, path_new, inits_bl=None, inits_new=None):
     ''' get diff in metrics between two paths '''
     
     mtr_id_list = get_mtr_ids_and(path_bl, path_new)
@@ -252,7 +258,7 @@ def get_mu_diff(path_bl, path_new, inits_bl=None, inits_new=None):
     mu_new = np.around(np.mean(metrics_new, 0), 4)
     
     # perc improvement for each metrics, avg across echos
-    mu_perc = mu_new / mu_bl
+    mu_perc = (mu_new / mu_bl) - 1
     mu_perc = np.mean(mu_perc, axis=0)
     
     return mu_perc, metrics_bl, metrics_new
