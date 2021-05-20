@@ -7,7 +7,7 @@
 *.csv
 *.dcm
 *.json
-masks/
+masks/expmt/
 old/
 ipynb/old/
 include/old/

@@ -8,28 +8,32 @@ import sigpy
 
 path_m = os.path.abspath(os.path.join(os.path.dirname(__file__),'..')) + '/masks/'
 
-def apply_mask(ksp_orig, accel, custom_calib=None):
+def apply_mask(ksp_orig, accel, calib=None, expmt=False):
     ''' apply mask
-        default (pre 20210405): 512x160 mask w 64x64 calibration region 
-        new: 512x80 mask zero padded to 512x160, w a 64x64 calibration region '''
+        default: 512x80 mask zero padded to 512x160, w a 64x64 calib region 
+        to choose custom calib region, expmt flag must be True
+
+        to generate new masks, use generate_poisson_disc() function below
+    '''
 
     assert ksp_orig.shape[-2:] == (512, 160)
-   
-    if custom_calib:
 
-        if custom_calib == 999: # sample calibration region, nothing else
+    if expmt: # flag to use experimental sampling masks v default
+        path_m = path_m + 'expmt/{}x/'.format(accel)
+
+        if calib == 999: # sample calibration region, nothing else
             # for 4x: 128x80 1's. for 8x: 72x72 1's
             mask_fn = '{}/mask_pd_{}x_calib_max.npy'.format(path_m, accel)
         else:
             rr = np.random.randint(0, high=20)
-            mask_fn = '{}mask_pd_{}x_calib{}_rand{}.npy'.format(path_m, accel,
-                                                            custom_calib, rr)
-        mask = torch.from_numpy(np.load(mask_fn))
-        mask = mask.type(torch.uint8)
-    else:
-        raise NotImplementedError('this mask is incorrect')
-        mask = torch.from_numpy(np.load('{}mask_poisson_disc_{}x.npy'.format(path_m, accel)))
-    
+            mask_fn = '{}{}/mask_pd_{}x_calib{}_rand{}.npy'.format(
+                    path_m, calib, accel, calib, rr)
+    else: # default mask uses 64x64 calib region
+        mask_fn = '{}pd_{}x_calib64.npy'.format(path_m, accel)
+
+    mask = torch.from_numpy(np.load(mask_fn))
+    mask = mask.type(torch.uint8)
+
     return ksp_orig * mask, mask
     
 def apply_dual_mask(ksp_orig, accel):

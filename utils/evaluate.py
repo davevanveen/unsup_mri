@@ -174,7 +174,7 @@ def vifp_mscale(ref, dist, sigma_nsq=1, eps=1e-10):
     return vifp
 
 ################################################################################
-######## likely deprecated functions below #####################################
+############### deprecated functions below #####################################
 
 METRIC_FUNCS = dict(
     MSE=mse,

@@ -15,9 +15,9 @@ from utils.transform import fft_2d, ifft_2d, root_sum_squares, \
 dtype = torch.cuda.FloatTensor
 
 TEST_SET = ['005', '006', '030', '034', '048', '052', '065', '066', '080', 
-            '096', '099', '120']#, '144', '156', '158', '173', '176', '178', 
-            #'188', '196', '198', '199', '218', '219', '221', '223',
-            #'224', '227', '235', '237', '240', '241', '244', '248']
+            '096', '099', '120', '144', '156', '158', '173', '176', '178', 
+            '188', '196', '198', '199', '218', '219', '221', '223',
+            '224', '227', '235', '237', '240', '241', '244', '248']
 ACCEL_LIST = [4, 8] 
 
 
@@ -41,11 +41,10 @@ def run_expmt(args):
                 os.makedirs(args.path_gt)
 
             # initialize network
-            net, net_input, ksp_orig_ = init_convdecoder(ksp_orig) # TODO: init dd+ w ksp_masked
+            net, net_input, ksp_orig_ = init_convdecoder(ksp_orig) 
 
             # apply mask after rescaling k-space. want complex tensors dim (nc, ky, kz)
-            ksp_masked, mask = apply_mask(ksp_orig_, accel, custom_calib=args.calib)
-            #im_masked = ifft_2d(ksp_masked)
+            ksp_masked, mask = apply_mask(ksp_orig_, accel)#, calib=args.calib, expmt=True)
             
             # fit network, get net output - default 10k iterations, lam_tv=1e-8
             net = fit(ksp_masked=ksp_masked, net=net, net_input=net_input, 
@@ -56,7 +55,7 @@ def run_expmt(args):
             # perform dc step
             ksp_est = fft_2d(im_out)
             ksp_dc = torch.where(mask, ksp_masked, ksp_est)
-            np.save('{}/MTR_{}_ksp_dc.npy'.format(path_out, file_id), ksp_dc.detach().numpy())
+            #np.save('{}/MTR_{}_ksp_dc.npy'.format(path_out, file_id), ksp_dc.detach().numpy())
 
             # create data-consistent, ground-truth images from k-space
             im_1_dc = root_sum_squares(ifft_2d(ksp_dc[:8])).detach()
@@ -87,9 +86,9 @@ def init_parser():
     parser.add_argument('--calib', type=int, default=64)
    
     # example of true/false arg
-    #parser.add_argument('--arj_mask', dest='arj_mask', action='store_true')
-    #parser.add_argument('--no_arj_mask', dest='arj_mask', action='store_false')
-    #parser.set_defaults(no_arj_mask=True)
+    #parser.add_argument('--_mask', dest='_mask', action='store_true')
+    #parser.add_argument('--no__mask', dest='_mask', action='store_false')
+    #parser.set_defaults(no__mask=True)
 
     args = parser.parse_args()
 
@@ -98,7 +97,6 @@ def init_parser():
 if __name__ == '__main__':
     
     args = init_parser()
-
     #torch.cuda.set_device(args.gpu_id)
 
     run_expmt(args)

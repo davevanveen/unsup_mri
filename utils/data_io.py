@@ -130,7 +130,7 @@ def load_h5_qdess(file_id):
 
     return ksp
 
-### potentially deprecated functions below #####################################
+########## semi-deprecated functions below #####################################
 
 def load_imgs_many_inits(mtr_id_list, path, num_inits=None, avg_inits=True):
     ''' load images where each sample was reconed multiple times
