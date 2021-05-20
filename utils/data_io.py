@@ -129,3 +129,30 @@ def load_h5_qdess(file_id):
     f.close()
 
     return ksp
+
+########## semi-deprecated functions below #####################################
+
+def load_imgs_many_inits(mtr_id_list, path, num_inits=None, avg_inits=True):
+    ''' load images where each sample was reconed multiple times
+        num_inits to control how many restarts are loaded '''
+
+    # indicator string if loading gt
+    gt_str = '_gt' if '/gt/' in path else ''
+
+    num_samps = len(mtr_id_list)
+    if num_inits == None:
+        num_inits = 4
+    num_echos, num_y, num_z = 2, 512, 160
+    arr = np.empty((num_samps, num_inits, num_echos, num_y, num_z))
+
+    for idx_s, mtr_id in enumerate(mtr_id_list):
+
+        for idx_i in np.arange(num_inits):
+
+            arr[idx_s,idx_i,0] = np.load('{}MTR_{}_e1{}_init{}.npy'.format(path, mtr_id, gt_str, idx_i))
+            arr[idx_s,idx_i,1] = np.load('{}MTR_{}_e2{}_init{}.npy'.format(path, mtr_id, gt_str, idx_i))
+
+    if avg_inits: # avg output across all inits
+        arr = np.mean(arr, axis=1)
+
+    return arr

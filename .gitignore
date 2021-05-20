@@ -2,14 +2,14 @@
 *.pyc
 *.png
 *.pdf
-*.txt
 *.out
 *.tar.gz
 *.csv
 *.dcm
 *.json
-masks/
+masks/expmt/
 old/
 ipynb/old/
 include/old/
 expmt/old/
+expmt/*.txt
